@@ -6,7 +6,8 @@ GateDetection::GateDetection(
     int pointcloudBufferSize,
     float minGateHeight,
     float wallWidth,
-    int decimation
+    int decimation,
+    int numClusters
 ) : mapWidth_(mapWidth), 
     mapHeight_(mapHeight),
     pointcloudBufferSize_(pointcloudBufferSize),
@@ -14,20 +15,18 @@ GateDetection::GateDetection(
     wallWidth_(wallWidth),
     decimation_(decimation)
 {
+    numClusters_ = numClusters;
     gate = std::make_unique<Gate>();
 }
 
 void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::LaserScan& laserData)
 {
-    std::cout << "PREVIOUS POS: " << gate->prevPosition << std::endl;
-    std::cout << "POS: " << gate->position << std::endl;
-
     // reset based on travelled distance
     if (pointCloud2D_.size() > pointcloudBufferSize_)
     {
         std::cout << "CLEAR OLDEST" << std::endl;
         reset(ResetStates::CLEAR_OLDEST);
-    } else if (position.x() > gate->position.x())
+    } else if (position.x() > gate->position.x() + wallWidth_/2)
     {
         std::cout << "CLEAR ALL NEAR CLOSEST POINT" << std::endl;
         
@@ -69,12 +68,11 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
     // // perform clustering and obtain convex hulls
     if (initDone && pointCloud2D_.size() > 100 && (updateIterations_ + 1) % decimation_ == 0)
     {
-        int numClusters = 3;
-        std::vector<PointGroup> clusters(numClusters);
+        std::vector<PointGroup> clusters(numClusters_);
         clustering(clusters);
 
         bool enoughDataPoints;
-        std::vector<PointGroup> hulls(numClusters);
+        std::vector<PointGroup> hulls(numClusters_);
         convexHull(clusters, hulls, enoughDataPoints);
         
         if (enoughDataPoints)

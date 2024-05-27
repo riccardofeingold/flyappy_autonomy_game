@@ -20,7 +20,7 @@ void Flyappy::init()
 
     if (laserData_.intensities[laserData_.ranges.size() - 1] == 0 && !gateDetector_.initDone)
     {
-        controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.1), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.5), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
     } 
     else
     {
@@ -44,9 +44,9 @@ void Flyappy::update()
         init();
     } else if (currentState_ == States::MOVE_FORWARD)
     {
-        std::cout << "STATE: MOVE_FORWARD" << std::endl;
         if (stateChanged)
         {
+            std::cout << "STATE: MOVE_FORWARD" << std::endl;
             // DO SOMETHING BEFORE MOVE_FORWARD MODE STARTS
             gateDetector_.reset(ResetStates::CLEAR_ALL);
             stateChanged = false;
@@ -69,6 +69,7 @@ void Flyappy::update()
         if (stateChanged)
         {
             // DO SOMETHING BEFORE FLY MODE STARTS
+            std::cout << "STATE: FLY" << std::endl;
             stateChanged = false;
         }
         // Updating the current state: Position
@@ -83,16 +84,13 @@ void Flyappy::update()
 
         // Track Path:
         controlInput_ = Eigen::Vector2f::Zero();
-        // if (gateDetector_.gate->gateUpdated)
-        // {
-        //     if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate->position.y()) < 0.01)
-        //     {
-        //         controlInput_ = pid_.computeAcceleration(gateDetector_.gate->position + Eigen::Vector2f(1.5, 0), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-        //     } else
-        //     {
-        //         controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, gateDetector_.gate->position.y()), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-        //     }
-        // }
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate->position.y()) < 0.01)
+        {
+            controlInput_ = pid_.computeAcceleration(gateDetector_.gate->position + Eigen::Vector2f(0.8, 0), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        } else
+        {
+            controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, gateDetector_.gate->position.y()), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        }
     }
 }
 

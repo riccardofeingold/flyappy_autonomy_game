@@ -8,9 +8,9 @@ class PIDController
 {
     public:
     PIDController(
-        float kp = 20,
-        float ki = 1,
-        float kd = 2,
+        float kp = 10,
+        float ki = 0,
+        float kd = 3,
         float i_max = 5,
         float i_min = -5
     );

@@ -58,7 +58,8 @@ class GateDetection
         int pointcloudBufferSize = 10000,
         float minGateHeight = 0.5,
         float wallWidth = 1,
-        int decimation = 6
+        int decimation = 6,
+        int numClusters = 4
     );
 
     /// @brief Returns two clusters after running KMeans on pointcloud data, which can be then used to compute two convex hulls
@@ -138,6 +139,7 @@ class GateDetection
     int updateIterations_ = 0;
 
     // Settings
+    int numClusters_;
     const int decimation_;
     const int mapWidth_;
     const int mapHeight_;
