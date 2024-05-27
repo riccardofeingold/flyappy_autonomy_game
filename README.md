@@ -14,6 +14,35 @@ runs out!
 ![Flyappy](flyappy_cover.png)
 
 ## Getting Started
+### Setup environment
+First, install the qpOASES cloning their repo into the src folder:
+```bash
+git clone https://github.com/coin-or/qpOASES.git
+```
+Then go into the qpOASES folder and run *make*:
+```bash
+make
+```
+After that you can build the actual ros packages using:
+```bash
+catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+```
+
+Then install OpenCV:
+```bash
+sudo apt-get install ros-noetic-vision-opencv
+```
+
+After compilation, at the root of the workspace, source the workspace in the terminal
+you want to run the game:
+```
+source devel/setup.bash
+```
+
+Run the C++ version:
+```
+roslaunch flyappy_autonomy_code flyappy_autonomy_code_cpp.launch
+```
 
 ### Setup the running environment
 
