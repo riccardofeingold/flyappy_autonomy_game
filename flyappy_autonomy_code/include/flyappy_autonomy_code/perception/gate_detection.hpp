@@ -19,6 +19,12 @@
 
 #define DEBUG false
 
+struct ClosestPoints
+{
+    Eigen::Vector2f closestPointWall1 = Eigen::Vector2f::Zero();
+    Eigen::Vector2f closestPointWall2 = Eigen::Vector2f::Zero();
+};
+
 struct PointHasher
 {
     std::size_t operator()(const Eigen::Vector2f& point) const
@@ -35,7 +41,6 @@ struct PointGroup
 
 struct Gate
 {
-    bool gateUpdated = false;
     float upperBoundY;
     float lowerBoundY;
     Eigen::Vector2f position = Eigen::Vector2f::Zero();
@@ -59,11 +64,14 @@ class GateDetection
         float minGateHeight = 0.5,
         float wallWidth = 1,
         int decimation = 6,
-        int numClusters = 4
+        int numClusters = 5
     );
 
     /// @brief Returns two clusters after running KMeans on pointcloud data, which can be then used to compute two convex hulls
     void clustering(std::vector<PointGroup>& clusters);
+
+    /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
+    void clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2);
 
     /// @brief Returns convex hulls based on a set of 2D points
     /// @param clusters should be a list returned from clustering()
@@ -72,7 +80,7 @@ class GateDetection
 
     /// @brief returns the center position of the gate, including the upper and lower bound
     /// @param hulls Convex hulls that represent the upper and lower pipes
-    void getGatePosition(const std::vector<PointGroup>& hulls);
+    void getGatePosition(const std::vector<PointGroup>& hullsWall1, const std::vector<PointGroup>& hullsWall2);
 
     /// @brief Main method: responsible for checking possible gates, and updating the pointcloud
     /// @param position Current Position of flyappy bird
@@ -94,11 +102,13 @@ class GateDetection
     /// @brief Becomes true if the upper and lower boundary are set (used for filtering point cloud)
     bool initDone = false;
 
-    /// @brief contains position and upper and lower bound of detected gate
-    std::unique_ptr<Gate> gate;
+    /// @brief contains position and upper and lower bound of detected gate at first wall
+    std::unique_ptr<Gate> gate1;
+    /// @brief contains position and upper and lower boudn of detected gate at second wall
+    std::unique_ptr<Gate> gate2;
 
-    /// @brief closest points of to flyappy bird
-    Eigen::Vector2f closestPoint = Eigen::Vector2f::Zero();
+    /// @brief closest points of to flyappy bird from wall 1 and wall 2
+    ClosestPoints closestPoints;
     
     private:
     /// @brief renders pointcloud using OpenCV
@@ -129,7 +139,7 @@ class GateDetection
     /// @brief counts how many times flappy bird goes out of screen in pointcloud window
     int countPointcloudWindowUpdates_ = 0;
     /// @brief Margin applied to top and bottom to filter out points from ceiling and ground
-    const float margin_ = 10 * pixelInMeters;
+    const float margin_ = 15 * pixelInMeters;
     /// @brief upper margin to filter out points that are part of the ceiling
     float upperBoundary_ = 0;
     /// @brief lower margin to filter out points that are part of the ground
