@@ -76,7 +76,7 @@ void Flyappy::update()
         stateEstimator_->update(velMeasured_);
         gateDetector_.update(stateEstimator_->getPosition(), laserData_);
         
-        Eigen::Vector2f refPos(2, 0);
+        Eigen::Vector2f refPos(3.5, 0);
         controlInput_ = pid_.computeAcceleration(refPos, Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
 
         if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > refPos.x())
@@ -98,24 +98,11 @@ void Flyappy::update()
         
         // Updating map and checking for Gate
         gateDetector_.update(stateEstimator_->getPosition(), laserData_);
-        
-        // Motion Planning
-        // pathPlanner_->update(stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-        // Eigen::Vector2f ref_pos = pathPlanner_->getNextRefPoint();
 
         // Track Path:
         controlInput_ = Eigen::Vector2f::Zero();
-        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate->position.y()) < 0.01)
-        {
-            Eigen::Vector4f XRef = Eigen::Vector4f(gateDetector_.gate->position.x() + 2.5, 0, gateDetector_.gate->position.y(), 0);
-            controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
-            // controlInput_ = pid_.computeAcceleration(gateDetector_.gate->position + Eigen::Vector2f(0.8, 0), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-        } else
-        {
-            Eigen::Vector4f XRef = Eigen::Vector4f(0, 0, gateDetector_.gate->position.y(), 0);
-            controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
-            // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, gateDetector_.gate->position.y()), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-        }
+        Eigen::Vector4f XRef = Eigen::Vector4f(gateDetector_.gate2->position.x() - 0.5, 0, gateDetector_.gate1->position.y(), 0);
+        controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
     }
 }
 
