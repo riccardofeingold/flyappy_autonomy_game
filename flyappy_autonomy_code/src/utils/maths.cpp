@@ -27,6 +27,18 @@ namespace Maths
         return *minElement;
     }
 
+    Eigen::Vector2f closestPoint(const std::vector<cv::Point2f>& vecList)
+    {
+        auto minElement = std::min_element(vecList.begin(), vecList.end(), [](const cv::Point2f& a, const cv::Point2f& b){
+            return a.x < b.x;
+        });
+
+        if (minElement == vecList.end())
+            return Eigen::Vector2f::Zero();
+
+        return Eigen::Vector2f(minElement->x, minElement->y);
+    }
+
     Eigen::Vector2f mean(const std::vector<cv::Point2f>& points)
     {
         Eigen::Vector2f meanPoint(0, 0);
