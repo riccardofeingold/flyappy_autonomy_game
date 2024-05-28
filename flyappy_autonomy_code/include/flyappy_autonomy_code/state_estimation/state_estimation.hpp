@@ -15,6 +15,7 @@ class StateEstimation
     void setPosition(const Eigen::Vector2f& pos);
 
     // getters
+    Eigen::Vector4f getStateVector();
     Eigen::Vector2f getPosition();
     Eigen::Vector2f getVelocity();
 

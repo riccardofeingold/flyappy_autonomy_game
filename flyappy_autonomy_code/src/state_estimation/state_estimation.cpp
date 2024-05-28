@@ -18,5 +18,6 @@ void StateEstimation::update(const Eigen::Vector2f& vel_measured)
 void StateEstimation::setPosition(const Eigen::Vector2f& pos) { position_ = pos; }
 
 // Getters
+Eigen::Vector4f StateEstimation::getStateVector() { return Eigen::Vector4f(position_.x(), velocity_.x(), position_.y(), velocity_.y()); }
 Eigen::Vector2f StateEstimation::getPosition() { return position_; }
 Eigen::Vector2f StateEstimation::getVelocity() { return velocity_; }
