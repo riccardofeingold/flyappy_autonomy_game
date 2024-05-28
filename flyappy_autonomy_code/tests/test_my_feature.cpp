@@ -6,9 +6,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "flyappy_autonomy_code/flyappy.hpp"
+#include "flyappy_autonomy_code/agent/flyappy.hpp"
 #include "flyappy_autonomy_code/perception/gate_detection.hpp"
 #include "flyappy_autonomy_code/utils/conversion.hpp"
+
+#include "flyappy_autonomy_code/controller/lqr_controller.hpp"
 
 TEST(Conversion, CVPointEigen)
 {
@@ -72,6 +74,40 @@ TEST(OpenCV, ClusteringTest)
     // Display the result
     cv::imshow("Convex Hulls for Multiple Clusters", image);
     cv::waitKey(0);
+}
+
+
+TEST(ControllerTesting, LQRTest)
+{
+    Eigen::Matrix4f Q;
+    Q << 100, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 100, 0,
+         0, 0, 0, 1;
+    std::cout << Q.maxCoeff() << std::endl;
+    Eigen::Matrix2f R;
+    R << 200, 0,
+         0, 1;
+
+    LQR lqr = LQR(Q, R, 1000);
+    std::cout << "K: \n" << lqr.K_ << std::endl;
+
+    Eigen::Vector4f X0(0, 0, 0, 0);
+    Eigen::Vector4f XRef(2, 0, -2, 0);
+
+    const int horizon = 100;
+    Eigen::Matrix<float, 4, horizon + 1> X = Eigen::Matrix<float, 4, horizon + 1>::Zero();
+    Eigen::Matrix<float, 2, horizon> U = Eigen::Matrix<float, 2, horizon>::Zero();
+
+    X.col(0) = X0;
+    Eigen::Vector4f Xk = X0;
+    for (uint16_t i = 1; i < 100; ++i)
+    {
+        Eigen::Vector2f Uk = lqr.eval(X0);
+        Xk = lqr.system_.nextState(Uk, Xk - XRef);
+        X.col(i) = Xk;
+        U.col(i-1) = Uk;
+    }
 }
 
 int main(int argc, char** argv)
