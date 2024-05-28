@@ -361,7 +361,10 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hulls)
         }
     }
     
-    gate->position = Eigen::Vector2f(closestPoint.x(), (gate->upperBoundY + gate->lowerBoundY)/2.0f);
+    if (std::abs(gate->upperBoundY - gate->lowerBoundY) > 0.3)
+    {
+        gate->position = Eigen::Vector2f(closestPoint.x(), (gate->upperBoundY + gate->lowerBoundY)/2.0f);
+    }
 }
 
 Eigen::Vector2f GateDetection::computeRelativePointPosition(const int index, const double distance, const double angleIncrement)
