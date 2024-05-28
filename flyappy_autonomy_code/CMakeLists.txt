@@ -32,9 +32,12 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-add_library(flyappy 
-  src/flyappy.cpp
+add_library(flyappy
+  # agent
+  src/agent/flyappy.cpp
+  src/agent/system_dynamics.cpp
   # controllers
+  src/controller/lqr_controller.cpp
   src/controller/mpc_controller.cpp
   src/controller/pid_controller.cpp
   # state estimation
