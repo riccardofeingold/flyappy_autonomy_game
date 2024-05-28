@@ -8,7 +8,7 @@
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Bool.h>
 
-#include "flyappy_autonomy_code/flyappy.hpp"
+#include "flyappy_autonomy_code/agent/flyappy.hpp"
 #include "flyappy_autonomy_code/controller/pid_controller.hpp"
 #include "flyappy_autonomy_code/state_estimation/state_estimation.hpp"
 

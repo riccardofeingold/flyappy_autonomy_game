@@ -1,4 +1,4 @@
-#include "flyappy_autonomy_code/flyappy.hpp"
+#include "flyappy_autonomy_code/agent/flyappy.hpp"
 
 Flyappy::Flyappy() : 
     pid_(PIDController()),
@@ -6,6 +6,24 @@ Flyappy::Flyappy() :
 {
     stateEstimator_ = std::make_shared<StateEstimation>(SAMPLING_TIME);
     velMeasured_ = Eigen::Vector2f::Zero();
+    
+    // initialize the LQR Controller
+    Eigen::Matrix4f Q;
+    Q << 100, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 100, 0,
+         0, 0, 0, 1;
+    Eigen::Matrix2f R;
+    R << 200, 0,
+         0, 1;
+
+    // calculated using matlab
+    Eigen::Matrix<float, 2, 4> K;
+    // K << 0.6932, 1.1795, 0, 0,
+    //      0, 0, 9.2648, 4.4032;
+    K << 1.375, 1.664, 0, 0,
+         0, 0, 15.6807, 5.6728;
+    lqr_ = LQR(Q, R, 1000, K);
 }
 
 void Flyappy::init()
@@ -20,13 +38,16 @@ void Flyappy::init()
 
     if (laserData_.intensities[laserData_.ranges.size() - 1] == 0 && !gateDetector_.initDone)
     {
-        controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.5), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        Eigen::Vector4f XRef(0, 0, 0.5, 0);
+        controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+        // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.5), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
     } 
     else
     {
         gateDetector_.computeBoundaries();
         gateDetector_.initDone = true;
-        controlInput_ = pid_.computeAcceleration(Eigen::Vector2f::Zero(), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        controlInput_ = lqr_.eval(stateEstimator_->getStateVector());
+        // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f::Zero(), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
 
         if (stateEstimator_->getVelocity().norm() < 0.005)
         {
@@ -86,10 +107,14 @@ void Flyappy::update()
         controlInput_ = Eigen::Vector2f::Zero();
         if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate->position.y()) < 0.01)
         {
-            controlInput_ = pid_.computeAcceleration(gateDetector_.gate->position + Eigen::Vector2f(0.8, 0), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+            Eigen::Vector4f XRef = Eigen::Vector4f(gateDetector_.gate->position.x() + 2.5, 0, gateDetector_.gate->position.y(), 0);
+            controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+            // controlInput_ = pid_.computeAcceleration(gateDetector_.gate->position + Eigen::Vector2f(0.8, 0), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
         } else
         {
-            controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, gateDetector_.gate->position.y()), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+            Eigen::Vector4f XRef = Eigen::Vector4f(0, 0, gateDetector_.gate->position.y(), 0);
+            controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+            // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, gateDetector_.gate->position.y()), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
         }
     }
 }
