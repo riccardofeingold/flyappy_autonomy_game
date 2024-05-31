@@ -5,6 +5,7 @@
 #include "flyappy_autonomy_code/controller/pid_controller.hpp"
 #include "flyappy_autonomy_code/perception/gate_detection.hpp"
 #include "flyappy_autonomy_code/controller/lqr_controller.hpp"
+#include "flyappy_autonomy_code/controller/mpc_controller.hpp"
 #include "flyappy_autonomy_code/state_estimation/state_estimation.hpp"
 
 // Utils
@@ -32,12 +33,14 @@ class Flyappy
   void update();
 
   /// @brief Get control input
-  Eigen::Vector2f getControlInput();
+  Eigen::Vector2d getControlInput();
 
   /// @brief PID controller
   PIDController pid_;
   /// @brief LQR controller
   LQR lqr_;
+  /// @brief MPC controller
+  MPCController mpc_;
 
   /// @brief Used for gate detection
   GateDetection gateDetector_;
@@ -57,5 +60,5 @@ class Flyappy
   sensor_msgs::LaserScan laserData_;
   
   /// @brief used to store the control input returned by a controller
-  Eigen::Vector2f controlInput_ = Eigen::Vector2f::Zero();
+  Eigen::Vector2d controlInput_ = Eigen::Vector2d::Zero();
 };

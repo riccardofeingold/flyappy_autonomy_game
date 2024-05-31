@@ -19,7 +19,7 @@ void FlyappyRos::velocityCallback(const geometry_msgs::Vector3::ConstPtr& msg)
 {
     flyappy_->storeObservations(Eigen::Vector2f(msg->x, msg->y));
     flyappy_->update();
-    Eigen::Vector2f accel = flyappy_->getControlInput();
+    Eigen::Vector2d accel = flyappy_->getControlInput();
 
     // // Send Control Input to Flyappy
     geometry_msgs::Vector3 acc_cmd;

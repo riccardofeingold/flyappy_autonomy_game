@@ -2,28 +2,34 @@
 
 Flyappy::Flyappy() : 
     pid_(PIDController()),
-    gateDetector_(GateDetection())
+    gateDetector_(GateDetection()),
+    mpc_(MPCController())
 {
     stateEstimator_ = std::make_shared<StateEstimation>(SAMPLING_TIME);
     velMeasured_ = Eigen::Vector2f::Zero();
     
     // initialize the LQR Controller
-    Eigen::Matrix4f Q;
-    Q << 100, 0, 0, 0,
+    Eigen::Matrix4f QLQR;
+    QLQR << 100, 0, 0, 0,
          0, 1, 0, 0,
-         0, 0, 100, 0,
+         0, 0, 300, 0,
          0, 0, 0, 1;
-    Eigen::Matrix2f R;
-    R << 200, 0,
+    Eigen::Matrix2f RLQR;
+    RLQR << 50, 0,
          0, 1;
 
-    // calculated using matlab
-    Eigen::Matrix<float, 2, 4> K;
-    // K << 0.6932, 1.1795, 0, 0,
-    //      0, 0, 9.2648, 4.4032;
-    K << 1.375, 1.664, 0, 0,
-         0, 0, 15.6807, 5.6728;
-    lqr_ = LQR(Q, R, 1000, K);
+    lqr_ = LQR(QLQR, RLQR, 1000);
+
+    // initialize MPC Controller
+    Eigen::Matrix4d QMPC;
+    QMPC << 1000, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1000, 0,
+         0, 0, 0, 1;
+    Eigen::Matrix2d RMPC;
+    RMPC << 1, 0,
+         0, 0.001;
+    mpc_.setQRPMatrices(QMPC, RMPC);
 }
 
 void Flyappy::init()
@@ -39,14 +45,17 @@ void Flyappy::init()
     if (laserData_.intensities[laserData_.ranges.size() - 1] == 0 && !gateDetector_.initDone)
     {
         Eigen::Vector4f XRef(0, 0, 0.5, 0);
-        controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+        bool success = mpc_.solve((stateEstimator_->getStateVector() - XRef).cast<double>(), controlInput_);
+        if (!success) std::cout << "ERROR: NO U optimal found" << std::endl;
+        // controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef).cast<double>();
         // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.5), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
     } 
     else
     {
         gateDetector_.computeBoundaries();
         gateDetector_.initDone = true;
-        controlInput_ = lqr_.eval(stateEstimator_->getStateVector());
+        // bool success = mpc_.solve(stateEstimator_->getStateVector().cast<double>(), controlInput_);
+        controlInput_ = lqr_.eval(stateEstimator_->getStateVector()).cast<double>();
         // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f::Zero(), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
 
         if (stateEstimator_->getVelocity().norm() < 0.005)
@@ -76,10 +85,12 @@ void Flyappy::update()
         stateEstimator_->update(velMeasured_);
         gateDetector_.update(stateEstimator_->getPosition(), laserData_);
         
-        Eigen::Vector2f refPos(3.5, 0);
-        controlInput_ = pid_.computeAcceleration(refPos, Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        Eigen::Vector4d XRef(4.5, 0, 0, 0);
+        bool success = mpc_.solve(stateEstimator_->getStateVector().cast<double>() - XRef, controlInput_);
+        // Eigen::Vector2f refPos(3.5, 0);
+        // controlInput_ = pid_.computeAcceleration(refPos, Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
 
-        if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > refPos.x())
+        if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > XRef(0))
         {
             stateChanged = true;
             currentState_ = States::FLY;
@@ -100,13 +111,14 @@ void Flyappy::update()
         gateDetector_.update(stateEstimator_->getPosition(), laserData_);
 
         // Track Path:
-        controlInput_ = Eigen::Vector2f::Zero();
+        controlInput_ = Eigen::Vector2d::Zero();
         Eigen::Vector4f XRef = Eigen::Vector4f(gateDetector_.gate2->position.x() - 0.5, 0, gateDetector_.gate1->position.y(), 0);
-        controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+        bool success = mpc_.solve((stateEstimator_->getStateVector() - XRef).cast<double>(), controlInput_);
+        // controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
     }
 }
 
-Eigen::Vector2f Flyappy::getControlInput()
+Eigen::Vector2d Flyappy::getControlInput()
 {
     return controlInput_;
 }
