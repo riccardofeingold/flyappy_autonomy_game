@@ -18,11 +18,26 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
-catkin_package()
 
 set(qpOASES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qpOASES")
 set(qpOASES_LIB_DIR "${qpOASES_DIR}/bin")
 set(qpOASES_INCLUDE_DIR "${qpOASES_DIR}/include")
+
+# Locate the qpOASES library
+find_library(qpOASES_LIBRARY NAMES qpOASES PATHS ${qpOASES_LIB_DIR})
+
+# Ensure qpOASES library is found
+if(NOT qpOASES_LIBRARY)
+message(FATAL_ERROR "qpOASES library not found in ${qpOASES_LIB_DIR}")
+else()
+message(-- LIBPATH => ${qpOASES_LIBRARY})
+endif()
+
+catkin_package(
+  INCLUDE_DIRS include ${qpOASES_INCLUDE_DIR}
+  LIBRARIES flyappy flyappy_ros ${qpOASES_LIBRARY}
+  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs cv_bridge
+)
 
 include_directories(
   include
@@ -49,6 +64,11 @@ add_library(flyappy
   src/utils/maths.cpp
 )
 
+target_link_libraries(flyappy
+  ${catkin_LIBRARIES}
+  ${qpOASES_LIBRARY}
+)
+
 add_library(flyappy_ros 
   src/flyappy_ros.cpp
 )
@@ -57,7 +77,7 @@ target_include_directories(flyappy_ros PRIVATE ${catkin_INCLUDE_DIRS} ${qpOASES_
 target_link_libraries(flyappy_ros
   flyappy
   ${catkin_LIBRARIES}
-  ${qpOASES_LIB_DIR}/libqpOASES.so
+  ${qpOASES_LIBRARY}
   ${OpenCV_LIBS}
 )
 
@@ -66,7 +86,7 @@ target_include_directories(flyappy_autonomy_code_node PRIVATE ${catkin_INCLUDE_D
 target_link_libraries(flyappy_autonomy_code_node
   flyappy_ros
   ${catkin_LIBRARIES}
-  ${qpOASES_LIB_DIR}/libqpOASES.so
+  ${qpOASES_LIBRARY}
   ${OpenCV_LIBS}
 )
 
