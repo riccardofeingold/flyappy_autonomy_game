@@ -38,7 +38,6 @@ void LQR::computeK()
 
         if ((P_next - P).cwiseAbs().maxCoeff() < tolerance) 
         {
-            std::cout << "STOPPED AT i: " << i << std::endl;
             P = P_next;
             break;
         }
