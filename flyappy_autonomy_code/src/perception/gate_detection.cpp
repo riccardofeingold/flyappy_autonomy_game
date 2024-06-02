@@ -11,7 +11,6 @@ GateDetection::GateDetection(
 {
     numClusters_ = numClusters;
     gate1 = std::make_unique<Gate>();
-    gate2 = std::make_unique<Gate>();
 }
 
 
@@ -76,35 +75,8 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         {
             closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
         }
-
-        // find clusters
-        std::vector<PointGroup> clustersWall1(numClusters_);
-        std::vector<PointGroup> clustersWall2(numClusters_);
-        clustering(clustersWall1, clustersWall2);
-
-        // get convex hulls if possible
-        bool atLeast3PointInEachCluster;
-        std::vector<PointGroup> hullsWall1(numClusters_);
-        convexHull(clustersWall1, hullsWall1, atLeast3PointInEachCluster);
-
-        // compute gate position
-        if (atLeast3PointInEachCluster)
-        {
-            clustersWall1.insert(clustersWall1.end(), clustersWall2.begin(), clustersWall2.end());
-            renderMap(clustersWall1, hullsWall1);
-            getGatePosition(hullsWall1, clustersWall2, position);
-        }
-        else
-        {
-            std::cout << "NOT ENOUGH DATA POINTS FOR CONVEX HULL" << std::endl;
-            getGatePosition(clustersWall1, clustersWall2, position);
-            clustersWall1.insert(clustersWall1.end(), clustersWall2.begin(), clustersWall2.end());
-            renderMap(clustersWall1);
-        }
-    } else
-    {
-        renderMap();
-    }
+    } 
+    renderMap();
 }
 
 void GateDetection::reset(ResetStates state)
@@ -145,7 +117,7 @@ void GateDetection::sortPointCloud(std::vector<Eigen::Vector2f>& pointcloud)
     });
 }
 
-void GateDetection::findGapInWall()
+void GateDetection::findGapInWall(const Eigen::Vector2f& position)
 {
     // convert from Eigen to OpenCV
     std::vector<Eigen::Vector2f> pointCloudCVWall1;
@@ -183,24 +155,26 @@ void GateDetection::findGapInWall()
         }
     }
 
-    if (max2ndGap < 2*birdHeight)
+    float yPos1 = (pointCloudCVWall1[indexBiggestGap].y() + pointCloudCVWall1[indexBiggestGap + 1].y()) / 2.0;
+    float yPos2 = (pointCloudCVWall1[index2ndBiggestGap].y() + pointCloudCVWall1[index2ndBiggestGap + 1].y()) / 2.0;
+
+    float dist1 = std::abs(yPos1 - position.y());
+    float dist2 = std::abs(yPos2 - position.y());
+
+    if (dist1 < dist2 || max2ndGap < 2*birdHeight)
     {
         gate1->upperBoundY = pointCloudCVWall1[indexBiggestGap].y();
         gate1->lowerBoundY = pointCloudCVWall1[indexBiggestGap + 1].y();
-        gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
-        // if (maxGap > 2*birdHeight)
-        // {
-        // }
+        gate1->position[1] = yPos1;
     } else
     {
         gate1->upperBoundY = pointCloudCVWall1[index2ndBiggestGap].y();
         gate1->lowerBoundY = pointCloudCVWall1[index2ndBiggestGap + 1].y();
-        gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
+        gate1->position[1] = yPos2;
     }
-    std::cout << "FIND GAP" << std::endl;
 }
 
-void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2)
+bool GateDetection::clustering(std::vector<PointGroup>& clustersWall1)
 {
     // convert from Eigen to OpenCV
     std::vector<cv::Point2f> pointCloudCVWall1;
@@ -226,14 +200,7 @@ void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vect
     if (pointCloudCVWall1.size() < clustersWall1.size())
     {
         // std::cout << "WALL 1: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
-        return;
-    }
-
-    bool computeGatePointForWall2 = true;
-    if (pointCloudCVWall2.size() < clustersWall2.size())
-    {
-        // std::cout << "WALL 2: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
-        computeGatePointForWall2 = false;
+        return false;
     }
 
     // WALL 1
@@ -263,34 +230,7 @@ void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vect
         return a.centroid.y < b.centroid.y;
     });
 
-    // WALL 2
-    if (computeGatePointForWall2)
-    {
-        cv::Mat pointsMatWall2(pointCloudCVWall2.size(), 1, CV_32FC2, &pointCloudCVWall2[0]);
-
-        // Perform K-Means clustering
-        cv::Mat labelsWall2, centersWall2;
-        cv::kmeans(pointsMatWall2, clustersWall2.size(), labelsWall2,
-                cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0),
-                10, cv::KMEANS_PP_CENTERS, centersWall2);
-
-        // Separate points into clusters
-        for (int i = 0; i < pointCloudCVWall2.size(); ++i) {
-            int clusterIdx = labelsWall2.at<int>(i);
-            clustersWall2[clusterIdx].points.push_back(pointCloudCVWall2[i]);
-        }
-
-        // compute centroids
-        for (auto& cluster : clustersWall2)
-        {
-            cluster.centroid = Conversions::convertEigenToCVPoint<float>(Maths::mean(cluster.points));
-        }
-
-        // order clusters according to y-centroid from top to bottom
-        std::sort(clustersWall2.begin(), clustersWall2.end(), [](const PointGroup& a, const PointGroup& b) -> bool {
-            return a.centroid.y < b.centroid.y;
-        });
-    }
+    return true;
 }
 
 void GateDetection::convexHull(const std::vector<PointGroup>& clusters, std::vector<PointGroup>& hulls, bool& enoughDataPoints)
@@ -348,7 +288,7 @@ std::vector<Eigen::Vector2f> GateDetection::filterDuplicatePoints(const std::vec
     return filteredPoints;
 }
 
-void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, const std::vector<PointGroup>& hullsWall2, const Eigen::Vector2f& position)
+void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, const Eigen::Vector2f& position)
 {
     float maxGapWall1 = 0;
     float maxGapWall2 = 0;
@@ -378,50 +318,23 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, c
             gate1->lowerBoundY = std::min(max1, max2);
             gate1->upperBoundY = std::max(min1, min2);
         }
-
-        min1 = upperBoundary_;
-        max1 = lowerBoundary_;
-        min2 = upperBoundary_;
-        max2 = lowerBoundary_;
-
-        for (const auto& point1 : hullsWall2[i].points)
-        {
-            if (point1.y < min1) min1 = point1.y;
-            if (point1.y > max1) max1 = point1.y;
-        }
-
-        for (const auto& point2 : hullsWall2[i + 1].points)
-        {
-            if (point2.y < min2) min2 = point2.y;
-            if (point2.y > max2) max2 = point2.y;
-        }
-
-        gap = std::max(min1, min2) - std::min(max1, max2);
-        if (gap > maxGapWall2)
-        {
-            maxGapWall2 = gap;
-            gate2->lowerBoundY = std::min(max1, max2);
-            gate2->upperBoundY = std::max(min1, min2);
-        }
     }
     
     float gap1 = std::abs(gate1->upperBoundY - gate1->lowerBoundY);
+
     std::cout << "GAP1: " << gap1 << std::endl;
-    
+
     gate1->position[0] = closestPoints.closestPointWall1.x();
+
     if (gap1 > 2*birdHeight && gap1 < gateHeight + 0.2)
     {
+        std::cout << "USING BIGGEST" << std::endl;
         gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY)/2.0f;
     }
     else
     {
-        findGapInWall();
-    }
-
-    gate2->position[0] = closestPoints.closestPointWall2.x();
-    if (std::abs(gate2->upperBoundY - gate2->lowerBoundY) > 2*birdHeight)
-    {
-        gate2->position[1] = (gate2->upperBoundY + gate2->lowerBoundY)/2.0f;
+        findGapInWall(position);
+        std::cout << "FIND GAP IN WALL" << std::endl;
     }
 }
 
@@ -446,8 +359,6 @@ void GateDetection::computeBoundaries()
 
     gate1->upperBoundY = upperBoundary_;
     gate1->lowerBoundY = lowerBoundary_;
-    gate2->upperBoundY = upperBoundary_;
-    gate2->lowerBoundY = lowerBoundary_;
 }
 
 /*********************************************************/
@@ -468,11 +379,6 @@ void GateDetection::renderMap()
     cv::Point2f cvPointGate1 = Conversions::convertEigenToCVPoint<float>(gate1->position);
     cvPointGate1 = cv::Point2f(cvPointGate1.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate1.y);
     cv::circle(image, cvPointGate1 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
-
-    // gate position
-    cv::Point2f cvPointGate2 = Conversions::convertEigenToCVPoint<float>(gate2->position);
-    cvPointGate2 = cv::Point2f(cvPointGate2.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate2.y);
-    cv::circle(image, cvPointGate2 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
 
     // closest point
     cv::Point2f cvPointClosestW1 = Conversions::convertEigenToCVPoint<float>(closestPoints.closestPointWall1);
@@ -517,11 +423,6 @@ void GateDetection::renderMap(const std::vector<PointGroup>& clusters, const std
     cvPointGate1 = cv::Point2f(cvPointGate1.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate1.y);
     cv::circle(image, cvPointGate1 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
 
-    // gate position
-    cv::Point2f cvPointGate2 = Conversions::convertEigenToCVPoint<float>(gate2->position);
-    cvPointGate2 = cv::Point2f(cvPointGate2.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate2.y);
-    cv::circle(image, cvPointGate2 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
-
     // closest point
     cv::Point2f cvPointClosestW1 = Conversions::convertEigenToCVPoint<float>(closestPoints.closestPointWall1);
     cvPointClosestW1 = cv::Point2f(cvPointClosestW1.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointClosestW1.y);
@@ -554,11 +455,6 @@ void GateDetection::renderMap(const std::vector<PointGroup>& clusters)
     cv::Point2f cvPointGate1 = Conversions::convertEigenToCVPoint<float>(gate1->position);
     cvPointGate1 = cv::Point2f(cvPointGate1.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate1.y);
     cv::circle(image, cvPointGate1 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
-
-    // gate position
-    cv::Point2f cvPointGate2 = Conversions::convertEigenToCVPoint<float>(gate2->position);
-    cvPointGate2 = cv::Point2f(cvPointGate2.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointGate2.y);
-    cv::circle(image, cvPointGate2 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(0, 0, 255), cv::FILLED);
 
     // closest point
     cv::Point2f cvPointClosestW1 = Conversions::convertEigenToCVPoint<float>(closestPoints.closestPointWall1);

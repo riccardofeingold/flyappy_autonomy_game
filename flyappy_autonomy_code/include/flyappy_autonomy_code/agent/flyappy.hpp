@@ -32,6 +32,8 @@ class Flyappy
   private:
   /// @brief Set point: represents the position of the gate
   Eigen::Vector4d XRef_;
+  /// @brief to safe gate 1 position => ensures independence of changes in gate detector class
+  Eigen::Vector2d gatePosition_;
   
   /// @brief PID controller
   PIDController pid_;

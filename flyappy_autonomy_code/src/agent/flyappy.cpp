@@ -88,18 +88,24 @@ void Flyappy::update()
             gateDetector_.update(stateEstimator_->getPosition(), laserData_, currentState_);
             stateChanged = false;
         }
+        
+        // find gap in wall
+        gateDetector_.findGapInWall(stateEstimator_->getPosition());
 
         // Switch to TARGET mode if we reach already safety distance
-        double xref = gateDetector_.closestPoints.closestPointWall1.x() - pipeGap;
+        double xref = gateDetector_.closestPoints.closestPointWall1.x() - pipeGap/4 * 3;
         if (stateEstimator_->getPosition().x() > xref)
         {
             stateChanged = true;
             currentState_ = States::TARGET;
             return;
         }
+        
+        // Setting reference point
+        XRef_ = Eigen::Vector4d(xref, 3.0, stateEstimator_->getPosition().y(), 0.0);
 
-        XRef_ = Eigen::Vector4d(xref, 2.0, stateEstimator_->getPosition().y(), 0.0);
-        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.6) XRef_(1) = -3.0;
+        // breaking if jump is too big
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.6) XRef_(1) = -10.0;
 
     } else if (currentState_ == States::TARGET)
     {
@@ -107,12 +113,21 @@ void Flyappy::update()
         {
             std::cout << "STATE: TARGET" << std::endl;
             stateChanged = false;
+            gatePosition_[0] = gateDetector_.closestPoints.closestPointWall1.x();
+            gatePosition_[1] = gateDetector_.gate1->position.y();
         }
 
+
         // "Path planning"
-        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.01)
+        if (stateEstimator_->getPosition().x() > gatePosition_.x() - pipeGap/2 && stateEstimator_->getPosition().x() < gatePosition_.x()) 
         {
-            if (stateEstimator_->getPosition().x() > gateDetector_.closestPoints.closestPointWall1.x() + wallWidth)
+            std::cout << "SEARCHING..." << std::endl;
+            gateDetector_.findGapInWall(stateEstimator_->getPosition());
+        }
+
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.005)
+        {
+            if (stateEstimator_->getPosition().x() > gatePosition_.x() + 0.3)
             {
                 stateChanged = true;
                 currentState_ = States::EXPLORE;
@@ -120,13 +135,13 @@ void Flyappy::update()
                 return;
             }
 
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() + wallWidth, 3.0, stateEstimator_->getPosition().y(), 0);
+            XRef_ = Eigen::Vector4d(gatePosition_.x() + 0.3, 3.0, gateDetector_.gate1->position.y(), 0);
         } else
-        {
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() - pipeGap, 3.0, gateDetector_.gate1->position.y(), 0);
+        {   
+            XRef_ = Eigen::Vector4d(gatePosition_.x(), 1.0, gateDetector_.gate1->position.y(), 0);
         }
 
-        // std::cout << "XREF: " << XRef_ << std::endl;
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.6) XRef_(1) = -10.0;
     }
     
     // Track Path: Compute control input

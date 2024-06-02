@@ -77,10 +77,11 @@ class GateDetection
     /// @param angleIncrement angle between two consecutive lasers
     Eigen::Vector2f computeRelativePointPosition(const int index, const double distance, const double angleIncrement);
 
+    /// @brief find biggest gap in pointcloud
+    void findGapInWall(const Eigen::Vector2f& position);
+
     /// @brief contains position and upper and lower bound of detected gate at first wall
     std::unique_ptr<Gate> gate1;
-    /// @brief contains position and upper and lower boudn of detected gate at second wall
-    std::unique_ptr<Gate> gate2;
 
     /// @brief closest points of to flyappy bird from wall 1 and wall 2
     ClosestPoints closestPoints;
@@ -88,16 +89,14 @@ class GateDetection
     private:
     /// @brief returns the center position of the gate, including the upper and lower bound
     /// @param hulls Convex hulls that represent the upper and lower pipes
-    void getGatePosition(const std::vector<PointGroup>& hullsWall1, const std::vector<PointGroup>& hullsWall2, const Eigen::Vector2f& position);
+    void getGatePosition(const std::vector<PointGroup>& hullsWall1, const Eigen::Vector2f& position);
     
     /// @brief sort pointcloud by y component
     void sortPointCloud(std::vector<Eigen::Vector2f>& pointcloud);
 
-    /// @brief find biggest gap in pointcloud
-    void findGapInWall();
 
     /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
-    void clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2);
+    bool clustering(std::vector<PointGroup>& clustersWall1);
 
     /// @brief Returns convex hulls based on a set of 2D points
     /// @param clusters should be a list returned from clustering()
