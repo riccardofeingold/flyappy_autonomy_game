@@ -18,8 +18,6 @@
 #include "flyappy_autonomy_code/utils/constants.hpp"
 #include "flyappy_autonomy_code/utils/maths.hpp"
 
-#include "flyappy_autonomy_code/state_estimation/kalman_filter.hpp"
-
 #define DEBUG false
 
 struct ClosestPoints
@@ -139,9 +137,6 @@ class GateDetection
     float upperBoundary_ = 0;
     /// @brief lower margin to filter out points that are part of the ground
     float lowerBoundary_ = 0;
-
-    /// @brief Kalman filter
-    KalmanFilter kf_;
 
     // Settings
     int numClusters_;

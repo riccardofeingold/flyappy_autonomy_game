@@ -7,8 +7,7 @@ GateDetection::GateDetection(
     int numClusters
 ) : mapWidth_(mapWidth), 
     mapHeight_(mapHeight),
-    pointcloudBufferSize_(pointcloudBufferSize),
-    kf_(KalmanFilter(1e-3, 1e-5, 2, 0))
+    pointcloudBufferSize_(pointcloudBufferSize)
 {
     numClusters_ = numClusters;
     gate1 = std::make_unique<Gate>();
@@ -427,11 +426,6 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, c
     {
         gate2->position[1] = (gate2->upperBoundY + gate2->lowerBoundY)/2.0f;
     }
-
-    // Kalman Filter
-    kf_.predict();
-    kf_.update(gate1->position.y());
-    gate1->position[1] = kf_.getEstimate();
 }
 
 Eigen::Vector2f GateDetection::computeRelativePointPosition(const int index, const double distance, const double angleIncrement)
