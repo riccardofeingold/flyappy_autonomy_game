@@ -29,17 +29,19 @@ class Flyappy
   /// @brief Get control input
   Eigen::Vector2d getControlInput();
 
-  /// @brief for state estimation
-  std::shared_ptr<StateEstimation> stateEstimator_;
+  private:
   /// @brief Set point: represents the position of the gate
   Eigen::Vector4d XRef_;
-  private:
+  
   /// @brief PID controller
   PIDController pid_;
   /// @brief LQR controller
   LQR lqr_;
   /// @brief MPC controller
   MPCController mpc_;
+
+  /// @brief for state estimation
+  std::shared_ptr<StateEstimation> stateEstimator_;
 
   /// @brief Used for gate detection
   GateDetection gateDetector_;

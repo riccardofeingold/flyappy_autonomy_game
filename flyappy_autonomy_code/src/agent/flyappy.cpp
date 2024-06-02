@@ -72,7 +72,7 @@ void Flyappy::update()
             stateChanged = false;
         }
 
-        XRef_ = Eigen::Vector4d(4.0, 0, 0, 0);
+        XRef_ = Eigen::Vector4d(4.7, 0, 0, 0);
         
         if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > XRef_(0))
         {
@@ -91,9 +91,7 @@ void Flyappy::update()
 
         // Switch to TARGET mode if we reach already safety distance
         double xref = gateDetector_.closestPoints.closestPointWall1.x() - pipeGap/2;
-        std::cout << "CX: " << stateEstimator_->getPosition().x() << std::endl;
-        std::cout << "xref: " << xref << std::endl;
-        if (stateEstimator_->getPosition().x() > xref)
+        if (stateEstimator_->getPosition().x() > xref && gateDetector_.gate2->position.x() > 0.0)
         {
             stateChanged = true;
             currentState_ = States::TARGET;
@@ -117,13 +115,14 @@ void Flyappy::update()
             {
                 stateChanged = true;
                 currentState_ = States::EXPLORE;
+                gateDetector_.update(stateEstimator_->getPosition(), laserData_, currentState_);
                 return;
             }
 
-            XRef_ = Eigen::Vector4d(gateDetector_.gate2->position.x(), -1.0, stateEstimator_->getPosition().y(), 0);
+            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() + pipeGap/2, 1.0, stateEstimator_->getPosition().y(), 0);
         } else
         {
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() - pipeGap/2, -1.0, gateDetector_.gate1->position.y(), 0);
+            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() - pipeGap/2, 1.0, gateDetector_.gate1->position.y(), 0);
             if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.3) XRef_(1) = -4.0;
         }
 

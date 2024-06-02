@@ -23,7 +23,7 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
     {
         std::cout << "CLEAR OLDEST" << std::endl;
         reset(ResetStates::CLEAR_OLDEST);
-    } else if (position.x() > closestPoints.closestPointWall1.x() + wallWidth)
+    } else if (position.x() > closestPoints.closestPointWall1.x())
     {
         std::cout << "CLEAR ALL NEAR CLOSEST POINT" << std::endl;
         
@@ -31,12 +31,6 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         reset(ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT);
     }
 
-    // Refresh window
-    Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
-    if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
-    {
-        countPointcloudWindowUpdates_++;
-    }
 
     // Save usefull 2D points
     for (uint8_t index = 0; index < laserData.intensities.size(); ++index)
@@ -58,6 +52,12 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         }
     }
 
+    // Refresh window
+    Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
+    if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
+    {
+        countPointcloudWindowUpdates_++;
+    }
 
     // perform clustering and obtain convex hulls
     if (currentState == States::EXPLORE && pointCloud2D_.size() > numClusters_)
@@ -152,26 +152,20 @@ void GateDetection::findGapInWall()
 {
     // convert from Eigen to OpenCV
     std::vector<Eigen::Vector2f> pointCloudCVWall1;
-    std::vector<Eigen::Vector2f> pointCloudCVWall2;
     for (auto point : pointCloud2D_)
     {
         if (point.x() >= closestPoints.closestPointWall1.x() && point.x() < closestPoints.closestPointWall1.x() + wallWidth)
         {
             pointCloudCVWall1.push_back(point);
-        } else
-        {
-            pointCloudCVWall2.push_back(point);
         }
     }
 
     // only continue if we have at least 100 data points
     bool enoughDataPointsWall2 = true;
     if (pointCloudCVWall1.size() < 30) return;
-    // if (pointCloudCVWall2.size() < 30) enoughDataPointsWall2 = false;
 
     // sort pointclouds
     sortPointCloud(pointCloudCVWall1);
-    // sortPointCloud(pointCloudCVWall2);
 
     gate1->position[0] = closestPoints.closestPointWall1.x();
 
@@ -206,26 +200,6 @@ void GateDetection::findGapInWall()
         gate1->lowerBoundY = pointCloudCVWall1[index2ndBiggestGap + 1].y();
         gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
     }
-
-    // // get closes point of the second wall
-    // if (enoughDataPointsWall2)
-    // {
-    //     this->closestPoints.closestPointWall2 = Maths::closestPoint(pointCloudCVWall2);
-    //     gate2->position[0] = closestPoints.closestPointWall2.x();
-
-    //     maxGap = 0.0f;
-    //     for (int i = 0; i < pointCloudCVWall2.size() - 1; ++i)
-    //     {
-    //         float gap = pointCloudCVWall2[i].y() - pointCloudCVWall2[i+1].y();
-    //         if (gap > maxGap)
-    //         {
-    //             gate2->upperBoundY = pointCloudCVWall2[i].y();
-    //             gate2->lowerBoundY = pointCloudCVWall2[i+1].y();
-    //             gate2->position[1] = (pointCloudCVWall2[i].y() + pointCloudCVWall2[i+1].y())/2.0;
-    //             maxGap = gap;
-    //         }
-    //     }
-    // }
 }
 
 void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2)
@@ -323,63 +297,6 @@ void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vect
     }
 }
 
-void GateDetection::clustering(std::vector<PointGroup>& clusters)
-{
-    // filter duplicates
-    std::vector<Eigen::Vector2f> filteredPoints = filterDuplicatePoints(pointCloud2D_, 0.0001);
-
-    // get closest point to bird
-    this->closestPoints.closestPointWall1 = Maths::closestPoint(filteredPoints);
-    
-    if (filteredPoints.size() == 0)
-    {
-        std::cout << "FILTERED POINTS SIZE = 0" << std::endl;
-        return;
-    }
-
-    // convert from Eigen to OpenCV
-    std::vector<cv::Point2f> pointCloudCV;
-    for (auto point : filteredPoints)
-    {
-        if (point.x() >= closestPoints.closestPointWall1.x() && point.x() < closestPoints.closestPointWall1.x() + wallWidth)
-        {
-            pointCloudCV.push_back(Conversions::convertEigenToCVPoint<float>(point));
-        }
-    }
-
-    if (pointCloudCV.size() < clusters.size())
-    {
-        std::cout << "NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
-        return;
-    }
-
-    // convert points to Mat
-    cv::Mat pointsMat(pointCloudCV.size(), 1, CV_32FC2, &pointCloudCV[0]);
-
-    // Perform K-Means clustering
-    cv::Mat labels, centers;
-    cv::kmeans(pointsMat, clusters.size(), labels,
-               cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0),
-               10, cv::KMEANS_PP_CENTERS, centers);
-
-    // Separate points into clusters
-    for (int i = 0; i < pointCloudCV.size(); ++i) {
-        int clusterIdx = labels.at<int>(i);
-        clusters[clusterIdx].points.push_back(pointCloudCV[i]);
-    }
-
-    // compute centroids
-    for (auto& cluster : clusters)
-    {
-        cluster.centroid = Conversions::convertEigenToCVPoint<float>(Maths::mean(cluster.points));
-    }
-
-    // order clusters according to y-centroid from top to bottom
-    std::sort(clusters.begin(), clusters.end(), [](const PointGroup& a, const PointGroup& b) -> bool {
-        return a.centroid.y < b.centroid.y;
-    });
-}
-
 void GateDetection::convexHull(const std::vector<PointGroup>& clusters, std::vector<PointGroup>& hulls, bool& enoughDataPoints)
 {
     for (uint8_t i = 0; i < clusters.size(); ++i)
@@ -418,7 +335,7 @@ std::vector<Eigen::Vector2f> GateDetection::filterDuplicatePoints(const std::vec
         bool isUnique = true;
         for (const auto& uniquePoint : uniquePoints)
         {
-            if ((uniquePoint - point).norm() < threshold)
+            if (std::abs(uniquePoint.x() - point.x()) < threshold || std::abs(uniquePoint.y() - point.y()) < threshold)
             {
                 isUnique = false;
                 break;
@@ -500,10 +417,10 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, c
     {
         gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY)/2.0f;
     }
-    // else if (position.x() > (2*closestPoints.closestPointWall1.x() + pipeGap) / 2.0f)
-    // {
-    //     findGapInWall();
-    // }
+    else if (position.x() > closestPoints.closestPointWall1.x() - pipeGap/2)
+    {
+        findGapInWall();
+    }
 
     gate2->position[0] = closestPoints.closestPointWall2.x();
     if (std::abs(gate2->upperBoundY - gate2->lowerBoundY) > 2*birdHeight)

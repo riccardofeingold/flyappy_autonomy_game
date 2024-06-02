@@ -3,7 +3,7 @@
 // Environment knowledge
 const double SAMPLING_TIME = 1.0/30.0;
 constexpr float pixelInMeters = 0.01f;
-const float wallWidth = 0.5;
+const float wallWidth = 0.9;
 const float gateHeight = 0.5;
 const float pipeGap = 2.0;
 const float birdHeight = 24 * pixelInMeters;

@@ -98,9 +98,6 @@ class GateDetection
     /// @brief find biggest gap in pointcloud
     void findGapInWall();
 
-    /// @brief Returns two clusters after running KMeans on pointcloud data, which can be then used to compute two convex hulls
-    void clustering(std::vector<PointGroup>& clusters);
-
     /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
     void clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2);
 
