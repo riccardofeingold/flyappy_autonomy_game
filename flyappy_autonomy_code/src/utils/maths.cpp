@@ -33,9 +33,6 @@ namespace Maths
             return a.x < b.x;
         });
 
-        if (minElement == vecList.end())
-            return Eigen::Vector2f::Zero();
-
         return Eigen::Vector2f(minElement->x, minElement->y);
     }
 

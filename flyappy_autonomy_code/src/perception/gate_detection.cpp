@@ -73,7 +73,11 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         }
 
         // find closest point
-        closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
+        if (pointCloud2D_.size() > 0)
+        {
+            closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
+        }
+        std::cout << "CLOSEST 1: " << closestPoints.closestPointWall1 << std::endl;
 
         // find clusters
         std::vector<PointGroup> clustersWall1(numClusters_);
@@ -241,7 +245,12 @@ void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vect
     }
 
     // get closes point of the second wall
-    this->closestPoints.closestPointWall2 = Maths::closestPoint(pointCloudCVWall2);
+    if (pointCloudCVWall2.size() > 0)
+    {
+        this->closestPoints.closestPointWall2 = Maths::closestPoint(pointCloudCVWall2);
+    }
+
+    std::cout << "CLOSEST POINT2: " << closestPoints.closestPointWall2 << std::endl;
 
     // Check if we have more data poitns than clusters
     if (pointCloudCVWall1.size() < clustersWall1.size())
@@ -503,9 +512,9 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, c
     }
 
     // Kalman Filter
-    // kf_.predict();
-    // kf_.update(gate1->position.y());
-    // gate1->position[1] = kf_.getEstimate();
+    kf_.predict();
+    kf_.update(gate1->position.y());
+    gate1->position[1] = kf_.getEstimate();
 }
 
 Eigen::Vector2f GateDetection::computeRelativePointPosition(const int index, const double distance, const double angleIncrement)
