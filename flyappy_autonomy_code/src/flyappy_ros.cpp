@@ -32,14 +32,6 @@ void FlyappyRos::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
     acc_cmd.x = accel[0];
     acc_cmd.y = accel[1];
     pub_acc_cmd_.publish(acc_cmd);
-
-    // Publish Current Position
-    geometry_msgs::Vector3 pos;
-    Eigen::Vector4d curr_pos = flyappy_->XRef_;
-    pos.x = curr_pos[0];
-    pos.y = curr_pos[2];
-
-    pub_pos_.publish(pos);
 }
 
 void FlyappyRos::gameEndedCallback(const std_msgs::Bool::ConstPtr& msg)
