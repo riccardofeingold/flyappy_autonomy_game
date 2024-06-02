@@ -102,10 +102,10 @@ void Flyappy::update()
         }
         
         // Setting reference point
-        XRef_ = Eigen::Vector4d(xref, 3.0, stateEstimator_->getPosition().y(), 0.0);
+        XRef_ = Eigen::Vector4d(xref, 3.5, stateEstimator_->getPosition().y(), 0.0);
 
         // breaking if jump is too big
-        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.6) XRef_(1) = -10.0;
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.9) XRef_(1) = -5.0;
 
     } else if (currentState_ == States::TARGET)
     {
@@ -135,7 +135,7 @@ void Flyappy::update()
                 return;
             }
 
-            XRef_ = Eigen::Vector4d(gatePosition_.x() + 0.3, 3.0, gateDetector_.gate1->position.y(), 0);
+            XRef_ = Eigen::Vector4d(gatePosition_.x() + 0.3, 3.5, gateDetector_.gate1->position.y(), 0);
         } else
         {   
             XRef_ = Eigen::Vector4d(gatePosition_.x(), 1.0, gateDetector_.gate1->position.y(), 0);
