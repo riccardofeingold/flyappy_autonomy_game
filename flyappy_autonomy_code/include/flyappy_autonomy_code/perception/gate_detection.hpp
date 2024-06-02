@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <cmath>
 #include <Eigen/Core>
+#include <algorithm>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -16,6 +17,8 @@
 #include "flyappy_autonomy_code/utils/conversion.hpp"
 #include "flyappy_autonomy_code/utils/constants.hpp"
 #include "flyappy_autonomy_code/utils/maths.hpp"
+
+#include "flyappy_autonomy_code/state_estimation/kalman_filter.hpp"
 
 #define DEBUG false
 
@@ -47,13 +50,6 @@ struct Gate
     Eigen::Vector2f prevPosition = Eigen::Vector2f::Zero();
 };
 
-enum ResetStates
-{
-    CLEAR_ALL,
-    CLEAR_OLDEST,
-    CLEAR_ALL_NEAR_CLOSEST_POINT
-};
-
 class GateDetection
 {
     public:
@@ -61,31 +57,15 @@ class GateDetection
         int mapWidth = 1000,
         int mapHeight = 1000,
         int pointcloudBufferSize = 10000,
-        float minGateHeight = 0.5,
-        float wallWidth = 1,
-        int decimation = 6,
         int numClusters = 5
     );
 
-    /// @brief Returns two clusters after running KMeans on pointcloud data, which can be then used to compute two convex hulls
-    void clustering(std::vector<PointGroup>& clusters);
-
-    /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
-    void clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2);
-
-    /// @brief Returns convex hulls based on a set of 2D points
-    /// @param clusters should be a list returned from clustering()
-    /// @param enoughDataPoints is returned true if dataPoints has at least 3 points to form a convex hull
-    void convexHull(const std::vector<PointGroup>& clusters, std::vector<PointGroup>& hulls, bool& enoughDataPoints);
-
-    /// @brief returns the center position of the gate, including the upper and lower bound
-    /// @param hulls Convex hulls that represent the upper and lower pipes
-    void getGatePosition(const std::vector<PointGroup>& hullsWall1, const std::vector<PointGroup>& hullsWall2);
 
     /// @brief Main method: responsible for checking possible gates, and updating the pointcloud
     /// @param position Current Position of flyappy bird
     /// @param laserData current laser measurements
-    void update(const Eigen::Vector2f& position, const sensor_msgs::LaserScan& laserData);
+    /// @param currentState of bird
+    void update(const Eigen::Vector2f& position, const sensor_msgs::LaserScan& laserData, const States& currentState);
 
     /// @brief Clears pointCloud2D_
     void reset(ResetStates state = ResetStates::CLEAR_ALL);
@@ -98,9 +78,6 @@ class GateDetection
     /// @param distance measured distance by laser at index
     /// @param angleIncrement angle between two consecutive lasers
     Eigen::Vector2f computeRelativePointPosition(const int index, const double distance, const double angleIncrement);
-    
-    /// @brief Becomes true if the upper and lower boundary are set (used for filtering point cloud)
-    bool initDone = false;
 
     /// @brief contains position and upper and lower bound of detected gate at first wall
     std::unique_ptr<Gate> gate1;
@@ -111,6 +88,27 @@ class GateDetection
     ClosestPoints closestPoints;
     
     private:
+    /// @brief returns the center position of the gate, including the upper and lower bound
+    /// @param hulls Convex hulls that represent the upper and lower pipes
+    void getGatePosition(const std::vector<PointGroup>& hullsWall1, const std::vector<PointGroup>& hullsWall2, const Eigen::Vector2f& position);
+    
+    /// @brief sort pointcloud by y component
+    void sortPointCloud(std::vector<Eigen::Vector2f>& pointcloud);
+
+    /// @brief find biggest gap in pointcloud
+    void findGapInWall();
+
+    /// @brief Returns two clusters after running KMeans on pointcloud data, which can be then used to compute two convex hulls
+    void clustering(std::vector<PointGroup>& clusters);
+
+    /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
+    void clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2);
+
+    /// @brief Returns convex hulls based on a set of 2D points
+    /// @param clusters should be a list returned from clustering()
+    /// @param enoughDataPoints is returned true if dataPoints has at least 3 points to form a convex hull
+    void convexHull(const std::vector<PointGroup>& clusters, std::vector<PointGroup>& hulls, bool& enoughDataPoints);
+
     /// @brief renders pointcloud using OpenCV
     void renderMap();
 
@@ -145,15 +143,12 @@ class GateDetection
     /// @brief lower margin to filter out points that are part of the ground
     float lowerBoundary_ = 0;
 
-    /// @brief to keep track of update iterations
-    int updateIterations_ = 0;
+    /// @brief Kalman filter
+    KalmanFilter kf_;
 
     // Settings
     int numClusters_;
-    const int decimation_;
     const int mapWidth_;
     const int mapHeight_;
     const int pointcloudBufferSize_;
-    const float minGateHeight_;
-    const float wallWidth_;
 };

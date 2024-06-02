@@ -11,12 +11,6 @@
 // Utils
 #include "flyappy_autonomy_code/utils/constants.hpp"
 
-enum States {
-  INIT,
-  MOVE_FORWARD,
-  FLY
-};
-
 class Flyappy
 {
   public:
@@ -35,6 +29,11 @@ class Flyappy
   /// @brief Get control input
   Eigen::Vector2d getControlInput();
 
+  /// @brief for state estimation
+  std::shared_ptr<StateEstimation> stateEstimator_;
+  /// @brief Set point: represents the position of the gate
+  Eigen::Vector4d XRef_;
+  private:
   /// @brief PID controller
   PIDController pid_;
   /// @brief LQR controller
@@ -45,10 +44,7 @@ class Flyappy
   /// @brief Used for gate detection
   GateDetection gateDetector_;
 
-  /// @brief for state estimation
-  std::shared_ptr<StateEstimation> stateEstimator_;
 
-  private:
   /// @brief Saves the current state in the state machine
   States currentState_ = States::INIT;
   /// @brief Is true if the state has changed in the state machine

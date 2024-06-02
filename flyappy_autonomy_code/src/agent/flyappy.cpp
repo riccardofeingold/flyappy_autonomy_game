@@ -7,18 +7,21 @@ Flyappy::Flyappy() :
 {
     stateEstimator_ = std::make_shared<StateEstimation>(SAMPLING_TIME);
     velMeasured_ = Eigen::Vector2f::Zero();
-    
-    // initialize the LQR Controller
-    Eigen::Matrix4f QLQR;
-    QLQR << 100, 0, 0, 0,
-         0, 1, 0, 0,
-         0, 0, 300, 0,
-         0, 0, 0, 1;
-    Eigen::Matrix2f RLQR;
-    RLQR << 50, 0,
-         0, 1;
 
-    lqr_ = LQR(QLQR, RLQR, 1000);
+    // init variables
+    XRef_ = Eigen::Vector4d::Zero();
+
+    // initialize the LQR Controller
+    // Eigen::Matrix4f QLQR;
+    // QLQR << 100, 0, 0, 0,
+    //      0, 1, 0, 0,
+    //      0, 0, 300, 0,
+    //      0, 0, 0, 1;
+    // Eigen::Matrix2f RLQR;
+    // RLQR << 50, 0,
+    //      0, 1;
+
+    // lqr_ = LQR(QLQR, RLQR, 1000);
 
     // initialize MPC Controller
     Eigen::Matrix4d QMPC;
@@ -34,40 +37,28 @@ Flyappy::Flyappy() :
 
 void Flyappy::init()
 {
-    stateEstimator_->update(velMeasured_);
-    gateDetector_.update(stateEstimator_->getPosition(), laserData_);
-
     if (laserData_.intensities.empty())
     {
         return;
     }
 
-    if (laserData_.intensities[laserData_.ranges.size() - 1] == 0 && !gateDetector_.initDone)
+    if (laserData_.intensities[laserData_.ranges.size() - 1] == 0)
     {
-        Eigen::Vector4f XRef(0, 0, 0.5, 0);
-        bool success = mpc_.solve((stateEstimator_->getStateVector() - XRef).cast<double>(), controlInput_);
-        if (!success) std::cout << "ERROR: NO U optimal found" << std::endl;
-        // controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef).cast<double>();
-        // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f(0, 0.5), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
+        XRef_ = Eigen::Vector4d(0, 0, 0.5, 0);
     } 
     else
     {
         gateDetector_.computeBoundaries();
-        gateDetector_.initDone = true;
-        // bool success = mpc_.solve(stateEstimator_->getStateVector().cast<double>(), controlInput_);
-        controlInput_ = lqr_.eval(stateEstimator_->getStateVector()).cast<double>();
-        // controlInput_ = pid_.computeAcceleration(Eigen::Vector2f::Zero(), Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-
-        if (stateEstimator_->getVelocity().norm() < 0.005)
-        {
-            stateChanged = true;
-            currentState_ = States::MOVE_FORWARD;
-        }
+        stateChanged = true;
+        currentState_ = States::MOVE_FORWARD;
     }
 }
 
 void Flyappy::update()
 {
+    stateEstimator_->update(velMeasured_);
+    gateDetector_.update(stateEstimator_->getPosition(), laserData_, currentState_);
+
     if (currentState_ == States::INIT)
     {
         std::cout << "STATE: INIT" << std::endl;
@@ -77,45 +68,72 @@ void Flyappy::update()
         if (stateChanged)
         {
             std::cout << "STATE: MOVE_FORWARD" << std::endl;
-            // DO SOMETHING BEFORE MOVE_FORWARD MODE STARTS
             gateDetector_.reset(ResetStates::CLEAR_ALL);
             stateChanged = false;
         }
 
-        stateEstimator_->update(velMeasured_);
-        gateDetector_.update(stateEstimator_->getPosition(), laserData_);
+        XRef_ = Eigen::Vector4d(4.0, 0, 0, 0);
         
-        Eigen::Vector4d XRef(4.5, 0, 0, 0);
-        bool success = mpc_.solve(stateEstimator_->getStateVector().cast<double>() - XRef, controlInput_);
-        // Eigen::Vector2f refPos(3.5, 0);
-        // controlInput_ = pid_.computeAcceleration(refPos, Eigen::Vector2f::Zero(), stateEstimator_->getPosition(), stateEstimator_->getVelocity());
-
-        if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > XRef(0))
+        if (stateEstimator_->getVelocity().norm() < 0.005 && stateEstimator_->getPosition().x() > XRef_(0))
         {
             stateChanged = true;
-            currentState_ = States::FLY;
+            currentState_ = States::EXPLORE;
         }
     } 
-    else if (currentState_ == States::FLY)
+    else if (currentState_ == States::EXPLORE)
     {
         if (stateChanged)
         {
-            // DO SOMETHING BEFORE FLY MODE STARTS
-            std::cout << "STATE: FLY" << std::endl;
+            std::cout << "STATE: EXPLORE" << std::endl;
+            gateDetector_.update(stateEstimator_->getPosition(), laserData_, currentState_);
             stateChanged = false;
         }
-        // Updating the current state: Position
-        stateEstimator_->update(velMeasured_);
-        
-        // Updating map and checking for Gate
-        gateDetector_.update(stateEstimator_->getPosition(), laserData_);
 
-        // Track Path:
-        controlInput_ = Eigen::Vector2d::Zero();
-        Eigen::Vector4f XRef = Eigen::Vector4f(gateDetector_.gate2->position.x() - 0.5, 0, gateDetector_.gate1->position.y(), 0);
-        bool success = mpc_.solve((stateEstimator_->getStateVector() - XRef).cast<double>(), controlInput_);
-        // controlInput_ = lqr_.eval(stateEstimator_->getStateVector() - XRef);
+        // Switch to TARGET mode if we reach already safety distance
+        double xref = gateDetector_.closestPoints.closestPointWall1.x() - pipeGap/2;
+        std::cout << "CX: " << stateEstimator_->getPosition().x() << std::endl;
+        std::cout << "xref: " << xref << std::endl;
+        if (stateEstimator_->getPosition().x() > xref)
+        {
+            stateChanged = true;
+            currentState_ = States::TARGET;
+            return;
+        }
+
+        XRef_ = Eigen::Vector4d(xref, 0.0, stateEstimator_->getPosition().y(), 0.0);
+
+    } else if (currentState_ == States::TARGET)
+    {
+        if (stateChanged)
+        {
+            std::cout << "STATE: TARGET" << std::endl;
+            stateChanged = false;
+        }
+
+        // "Path planning"
+        if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.01)
+        {
+            if (stateEstimator_->getPosition().x() > gateDetector_.closestPoints.closestPointWall1.x() + wallWidth)
+            {
+                stateChanged = true;
+                currentState_ = States::EXPLORE;
+                return;
+            }
+
+            XRef_ = Eigen::Vector4d(gateDetector_.gate2->position.x(), -1.0, stateEstimator_->getPosition().y(), 0);
+        } else
+        {
+            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x() - pipeGap/2, -1.0, gateDetector_.gate1->position.y(), 0);
+            if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) > 0.3) XRef_(1) = -4.0;
+        }
+
+        std::cout << "XREF: " << XRef_ << std::endl;
     }
+    
+    // Track Path: Compute control input
+    controlInput_ = Eigen::Vector2d::Zero();
+    bool success = mpc_.solve(stateEstimator_->getStateVector().cast<double>() - XRef_, controlInput_);
+    if (!success) std::cout << "ERROR: NO U optimal found" << std::endl;
 }
 
 Eigen::Vector2d Flyappy::getControlInput()

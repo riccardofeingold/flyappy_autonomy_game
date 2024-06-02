@@ -18,10 +18,15 @@ FlyappyRos::FlyappyRos(ros::NodeHandle& nh)
 void FlyappyRos::velocityCallback(const geometry_msgs::Vector3::ConstPtr& msg)
 {
     flyappy_->storeObservations(Eigen::Vector2f(msg->x, msg->y));
+}
+
+void FlyappyRos::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
+{
+    flyappy_->storeObservations(msg);
     flyappy_->update();
     Eigen::Vector2d accel = flyappy_->getControlInput();
 
-    // // Send Control Input to Flyappy
+    // Send Control Input to Flyappy
     geometry_msgs::Vector3 acc_cmd;
 
     acc_cmd.x = accel[0];
@@ -30,17 +35,11 @@ void FlyappyRos::velocityCallback(const geometry_msgs::Vector3::ConstPtr& msg)
 
     // Publish Current Position
     geometry_msgs::Vector3 pos;
-    Eigen::Vector2f curr_pos = flyappy_->stateEstimator_->getPosition();
-    pos.x = curr_pos.x();
-    pos.y = curr_pos.y();
+    Eigen::Vector4d curr_pos = flyappy_->XRef_;
+    pos.x = curr_pos[0];
+    pos.y = curr_pos[2];
 
     pub_pos_.publish(pos);
-}
-
-void FlyappyRos::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
-{
-    flyappy_->storeObservations(msg);
-    // ROS_INFO("Laser range: %f, angle: %f", msg->ranges[0], msg->angle_min);
 }
 
 void FlyappyRos::gameEndedCallback(const std_msgs::Bool::ConstPtr& msg)
