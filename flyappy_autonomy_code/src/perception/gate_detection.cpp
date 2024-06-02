@@ -76,7 +76,6 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         {
             closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
         }
-        std::cout << "CLOSEST 1: " << closestPoints.closestPointWall1 << std::endl;
 
         // find clusters
         std::vector<PointGroup> clustersWall1(numClusters_);
@@ -128,7 +127,6 @@ void GateDetection::reset(ResetStates state)
             break;
 
         case ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT:
-            std::cout << "CLOSEST POINT " << closestPoints.closestPointWall1 << std::endl;
             for (unsigned int i = 0; i < pointCloud2D_.size(); ++i)
             {
                 if (pointCloud2D_[i].x() > closestPoints.closestPointWall1.x() - wallWidth && pointCloud2D_[i].x() < closestPoints.closestPointWall1.x() + wallWidth)
@@ -187,18 +185,19 @@ void GateDetection::findGapInWall()
 
     if (max2ndGap < 2*birdHeight)
     {
-        if (maxGap > 2*birdHeight)
-        {
-            gate1->upperBoundY = pointCloudCVWall1[indexBiggestGap].y();
-            gate1->lowerBoundY = pointCloudCVWall1[indexBiggestGap + 1].y();
-            gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
-        }
+        gate1->upperBoundY = pointCloudCVWall1[indexBiggestGap].y();
+        gate1->lowerBoundY = pointCloudCVWall1[indexBiggestGap + 1].y();
+        gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
+        // if (maxGap > 2*birdHeight)
+        // {
+        // }
     } else
     {
         gate1->upperBoundY = pointCloudCVWall1[index2ndBiggestGap].y();
         gate1->lowerBoundY = pointCloudCVWall1[index2ndBiggestGap + 1].y();
         gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY) / 2.0;
     }
+    std::cout << "FIND GAP" << std::endl;
 }
 
 void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vector<PointGroup>& clustersWall2)
@@ -223,19 +222,17 @@ void GateDetection::clustering(std::vector<PointGroup>& clustersWall1, std::vect
         this->closestPoints.closestPointWall2 = Maths::closestPoint(pointCloudCVWall2);
     }
 
-    std::cout << "CLOSEST POINT2: " << closestPoints.closestPointWall2 << std::endl;
-
     // Check if we have more data poitns than clusters
     if (pointCloudCVWall1.size() < clustersWall1.size())
     {
-        std::cout << "WALL 1: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
+        // std::cout << "WALL 1: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
         return;
     }
 
     bool computeGatePointForWall2 = true;
     if (pointCloudCVWall2.size() < clustersWall2.size())
     {
-        std::cout << "WALL 2: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
+        // std::cout << "WALL 2: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
         computeGatePointForWall2 = false;
     }
 
@@ -412,11 +409,11 @@ void GateDetection::getGatePosition(const std::vector<PointGroup>& hullsWall1, c
     std::cout << "GAP1: " << gap1 << std::endl;
     
     gate1->position[0] = closestPoints.closestPointWall1.x();
-    if (gap1 > 2*birdHeight)
+    if (gap1 > 2*birdHeight && gap1 < gateHeight + 0.2)
     {
         gate1->position[1] = (gate1->upperBoundY + gate1->lowerBoundY)/2.0f;
     }
-    else if (position.x() > closestPoints.closestPointWall1.x() - pipeGap/2)
+    else
     {
         findGapInWall();
     }
