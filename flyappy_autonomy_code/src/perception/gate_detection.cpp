@@ -129,9 +129,8 @@ void GateDetection::findGapInWall(const Eigen::Vector2f& position)
         }
     }
 
-    // only continue if we have at least 100 data points
-    bool enoughDataPointsWall2 = true;
-    if (pointCloudCVWall1.size() < 30) return;
+    // only continue if we have at least 10 data points
+    if (pointCloudCVWall1.size() < 10) return;
 
     // sort pointclouds
     sortPointCloud(pointCloudCVWall1);
@@ -199,11 +198,11 @@ bool GateDetection::clustering(std::vector<PointGroup>& clustersWall1)
     // Check if we have more data poitns than clusters
     if (pointCloudCVWall1.size() < clustersWall1.size())
     {
-        // std::cout << "WALL 1: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
+        std::cout << "WALL: NOT ENOUGH DATA POINTS NEAR CLOSEST POINT" << std::endl;
         return false;
     }
 
-    // WALL 1
+    // WALL
     // convert points to Mat
     cv::Mat pointsMatWall1(pointCloudCVWall1.size(), 1, CV_32FC2, &pointCloudCVWall1[0]);
 
