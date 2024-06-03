@@ -40,7 +40,7 @@ MPCController::~MPCController()
     delete[] ubA_;
 }
 
-bool MPCController::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U, bool init)
+bool MPCController::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U)
 {
     // Setup consttraints
     Eigen::MatrixXd g = F_.transpose() * Xk;
@@ -50,7 +50,7 @@ bool MPCController::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U, bool in
     A_ = Conversions::convertEigenToRealT<double>(eigenA_);
 
     // Setup QP solver
-    QProblem qp(Nu_ * N_, 4 * N_, HST_POSDEF);
+    QProblem qp(Nu_ * N_, eigenA_.rows(), HST_POSDEF);
     Options options;
     options.setToMPC();
     options.printLevel = PL_NONE;

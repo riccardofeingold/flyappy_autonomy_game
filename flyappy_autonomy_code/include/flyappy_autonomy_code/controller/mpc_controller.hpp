@@ -27,7 +27,7 @@ class MPCController
     void setQRPMatrices(const Eigen::Matrix4d& Q, const Eigen::Matrix2d& R);
 
     /// @brief solve the QP problem and return optimal U
-    bool solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U, bool init = false);
+    bool solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U);
 
     private:
     /// @brief Construct the constraints matrix
