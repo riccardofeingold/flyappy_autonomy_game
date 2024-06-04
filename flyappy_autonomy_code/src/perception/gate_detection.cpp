@@ -21,7 +21,7 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
     {
         std::cout << "CLEAR OLDEST" << std::endl;
         reset(ResetStates::CLEAR_OLDEST);
-    } else if (position.x() > closestPoints.closestPointWall1.x())
+    } else if (position.x() > closestPoints.closestPointWall1.x() && currentState == States::TUNNEL)
     {
         std::cout << "CLEAR ALL NEAR CLOSEST POINT" << std::endl;
         
@@ -29,7 +29,33 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         reset(ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT);
     }
 
+    // Refresh window
+    Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
+    if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
+    {
+        countPointcloudWindowUpdates_++;
+    }
 
+    // perform clustering and obtain convex hulls
+    if (pointCloud2D_.size() > numClusters_ && currentState != States::TUNNEL)
+    {
+        // filter duplicates
+        pointCloud2D_ = filterDuplicatePoints(pointCloud2D_, 0.0001);
+
+        // check if we still have data points left
+        if (pointCloud2D_.size() == 0)
+        {
+            std::cout << "FILTER REMOVED ALL DATA POINTS" << std::endl;
+            return;
+        }
+
+        // find closest point
+        if (pointCloud2D_.size() > 0)
+        {
+            closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
+        }
+    } 
+    
     // Save usefull 2D points
     for (uint8_t index = 0; index < laserData.intensities.size(); ++index)
     {
@@ -49,33 +75,6 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
             }
         }
     }
-
-    // Refresh window
-    Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
-    if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
-    {
-        countPointcloudWindowUpdates_++;
-    }
-
-    // perform clustering and obtain convex hulls
-    if (currentState == States::EXPLORE && pointCloud2D_.size() > numClusters_)
-    {
-        // filter duplicates
-        pointCloud2D_ = filterDuplicatePoints(pointCloud2D_, 0.0001);
-
-        // check if we still have data points left
-        if (pointCloud2D_.size() == 0)
-        {
-            std::cout << "FILTER REMOVED ALL DATA POINTS" << std::endl;
-            return;
-        }
-
-        // find closest point
-        if (pointCloud2D_.size() > 0)
-        {
-            closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
-        }
-    } 
     renderMap();
 }
 
@@ -101,7 +100,7 @@ void GateDetection::reset(ResetStates state)
         case ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT:
             for (unsigned int i = 0; i < pointCloud2D_.size(); ++i)
             {
-                if (pointCloud2D_[i].x() > closestPoints.closestPointWall1.x() - wallWidth && pointCloud2D_[i].x() < closestPoints.closestPointWall1.x() + wallWidth)
+                if (pointCloud2D_[i].x() > closestPoints.closestPointWall1.x() - 2*wallWidth && pointCloud2D_[i].x() < closestPoints.closestPointWall1.x() + 2*wallWidth)
                 {
                     pointCloud2D_.erase(pointCloud2D_.begin() + i);
                 }

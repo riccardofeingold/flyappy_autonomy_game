@@ -8,33 +8,40 @@
 #include "flyappy_autonomy_code/utils/conversion.hpp"
 
 USING_NAMESPACE_QPOASES
-class MPCController 
+class MPC 
 {
     public:
-    MPCController(
+    MPC(
         int Nx=4, // state dimension
         int Nu=2, // control dimension
-        int N=30, // horizon
-        int nWSR=100 // number of working set calculations
+        int N=30, // horizon: If you use only Input constraint set it to 30 otherwise 70
+        int nWSR=1500, // number of working set calculations
+        bool onlyInputConstraints = false
     );
     
-    ~MPCController();
+    ~MPC();
 
     /// @brief set State matrix constraints
     void setStateMatrixConstraints(const Eigen::MatrixXd& Hx, const Eigen::VectorXd& hx);
+
+    /// @brief set State matrix constraints
+    void setTerminalMatrixConstraints(const Eigen::MatrixXd& Hf, const Eigen::VectorXd& hf);
+    
+    /// @brief compute steady state for specific reference
+    Eigen::VectorXd computeSteadyState(const Eigen::Vector4d& r);
 
     /// @brief set Q, P, and R matrix
     void setQRPMatrices(const Eigen::Matrix4d& Q, const Eigen::Matrix2d& R);
 
     /// @brief solve the QP problem and return optimal U
-    bool solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U);
+    bool solve(const Eigen::Vector4d& Xk, const Eigen::Vector4d& Xs, const Eigen::Vector2d& Us, Eigen::Vector2d& U);
 
     private:
     /// @brief Construct the constraints matrix
     void constructConstraintsMatrix();
 
     /// @brief Construct the upperbound constraints
-    void constructUpperBoundConstraints();
+    void constructUpperBoundConstraints(const Eigen::Vector2d& Us, const Eigen::Vector4d& Xs);
 
     /// @brief construct blockdiagonal matrix Q bar = blockdiag(Q, ..., Q, P)
     void constructQBar();
@@ -54,6 +61,9 @@ class MPCController
     /// @brief construct Y = Sx^T * Q_bar * Sx
     void constructY();
 
+    /// @brief construct E = [0 ... 0 -Hx -Hx*A ... -Hf*A^N]
+    void constructE();
+    
     /// @brief compute P
     void computeP();
 
@@ -61,6 +71,7 @@ class MPCController
     const int N_;
     const int Nx_;
     const int Nu_;
+    bool onlyInputConstraints_;
     int nWSR_;
     Eigen::Matrix4d Q_;
     Eigen::MatrixXd QBar_;
@@ -84,6 +95,7 @@ class MPCController
     // Variables to simplify equations
     Eigen::MatrixXd F_;
     Eigen::MatrixXd Y_;
+    Eigen::MatrixXd E_;
 
     // Constraints
     /// @brief State Matrix constraints
@@ -94,6 +106,10 @@ class MPCController
     Eigen::Matrix<double, 4, 2> Hu_; // Fix
     /// @brief RHS of input constraint inequality
     Eigen::Vector4d hu_; // Fix
+    /// @brief terminal constraint
+    Eigen::MatrixXd Hf_;
+    /// @brief terminal constraint RHS
+    Eigen::VectorXd hf_;
 
     /// @brief Accessing System Dynamics
     SystemDynamics system_;

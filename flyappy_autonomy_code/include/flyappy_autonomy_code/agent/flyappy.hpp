@@ -32,6 +32,8 @@ class Flyappy
   private:
   /// @brief Set point: represents the position of the gate
   Eigen::Vector4d XRef_;
+  /// @brief to store the position at the end of the exploration phase
+  Eigen::Vector2f explorePos_;
   /// @brief to safe gate 1 position => ensures independence of changes in gate detector class
   Eigen::Vector2d gatePosition_;
   
@@ -40,7 +42,7 @@ class Flyappy
   /// @brief LQR controller
   LQR lqr_;
   /// @brief MPC controller
-  MPCController mpc_;
+  MPC mpc_;
 
   /// @brief for state estimation
   std::shared_ptr<StateEstimation> stateEstimator_;

@@ -225,34 +225,48 @@ TEST(ControllerTesting, matrixFormation)
     R << 1, 0,
          0, 0.001;
 
-    MPCController mpc(4, 2, 5, 10);
-    mpc.setQRPMatrices(Q, R);
+    MPC mpc(4, 2, 2, 100);
+    mpc.Q_ = Q;
+    mpc.R_ = R;
+    mpc.computeP();
+    mpc.constructQBar();
+    mpc.constructRBar();
+    mpc.constructSxSu();
+    mpc.constructF();
+    mpc.constructH();
+    mpc.constructE();
+    mpc.constructConstraintsMatrix();
     // mpc.constructQBar();
 
+    // CORRECT
     std::cout << "Q_bar MPC: \n" << mpc.QBar_ << std::endl;
 
     // mpc.constructRBar();
+    // CORRECT
     std::cout << "R_bar MPC: \n" << mpc.RBar_ << std::endl;
 
     // Construct Sx and Su
     // mpc.constructSxSu();
-
+    // CORRECT
     std::cout << "Sx MPC: \n" << mpc.Sx_ << std::endl;
     std::cout << "Su MPC: \n" << mpc.Su_ << std::endl;
 
     // UP TO HERE I double checked with matlab; Since the one below is based on calculation I assume that is correct.
     // construct H, Y, F
     // mpc.constructF();
+    // CORRECT
     std::cout << "F: \n" << mpc.F_ << std::endl;
 
     // mpc.constructH();
-    std::cout << "H: \n" << mpc.H_ << std::endl;
+    // CORRECT
+    std::cout << "H: \n" << mpc.eigenH_ << std::endl;
 
     // mpc.constructY();
-    std::cout << "Y: \n" << mpc.Y_ << std::endl;
+    // std::cout << "Y: \n" << mpc.Y_ << std::endl;
 
     // Constraint matrix eigenA_
     // mpc.constructConstraintsMatrix();
+    // CORRECT
     std::cout << "Eigen A: \n" << mpc.eigenA_ << std::endl;
 
     // upperbouand 
@@ -261,65 +275,83 @@ TEST(ControllerTesting, matrixFormation)
 
 TEST(ControllerTesting, MPCTest)
 {
+    #include <fstream>
+    SystemDynamics system;
+
     Eigen::Matrix4d Q;
     Q << 1000, 0, 0, 0,
-         0, 1, 0, 0,
-         0, 0, 1000, 0,
-         0, 0, 0, 1;
+         0, 500, 0, 0,
+         0, 0, 2000, 0,
+         0, 0, 0, 15;
     Eigen::Matrix2d R;
-    R << 1, 0,
-         0, 0.001;
+    R << 0.00001, 0,
+         0, 0.00001;
 
-    MPCController mpc(4, 2, 30, 100);
+    MPC mpc(4, 2, 30, 1000, false);
     mpc.setQRPMatrices(Q, R);
 
     // solve mpc
-    Eigen::Vector4f Xk(0, 0, 0, 0);
-    Eigen::Vector4f XRef(0, 0, 0.5, 0);
-    Eigen::Vector2d U;
+    int simHorizon = 100;
+    Eigen::Vector4d Xk(0, 0, 0, 0);
+    Eigen::Vector4d XRef(4.5, 0.0, 6.0, 0.0);
+    Eigen::Vector2d Uk;
+    std::vector<Eigen::Vector2d> U;
+    std::vector<Eigen::Vector4d> X;
 
-    for (int i = 0; i < 4; ++i)
+    X.push_back(Xk);
+    for (int i = 1; i < simHorizon; ++i)
     {
-        Eigen::MatrixXd g = mpc.F_.transpose() * Xk.cast<double>();
-        mpc.g_ = Conversions::convertEigenToRealT(g);
-        // mpc.setQRPMatrices(Q, R);
-        mpc.constructH();
-        mpc.constructUpperBoundConstraints();
-        mpc.constructConstraintsMatrix();
-        QProblem qp(mpc.Nu_ * mpc.N_, 4 * mpc.N_, HST_POSDEF);
-        Options options;
-        options.setToMPC();
-        options.printLevel = PL_HIGH;
-        qp.setOptions(options);
+        Eigen::VectorXd steadyState = mpc.computeSteadyState(XRef);
+        std::cout << "SS: " << steadyState << std::endl;
 
-        int nWSR = mpc.nWSR_;
-        std::cout << mpc.nWSR_ << std::endl;
-        qp.init(mpc.H_, mpc.g_, mpc.A_, nullptr, nullptr, mpc.lbA_, mpc.ubA_, nWSR);
-        real_t* xOpt = new real_t[mpc.Nu_ * mpc.N_];
-        qp.getPrimalSolution(xOpt);
-        U(0) = xOpt[0];
-        U(1) = xOpt[1];
-        delete[] xOpt;
-        delete[] mpc.g_;
-        delete[] mpc.H_;
-        delete[] mpc.A_;
-        delete[] mpc.lbA_;
-        delete[] mpc.ubA_;
-        mpc.g_ = nullptr;
-        mpc.H_ = nullptr;
-        mpc.A_ = nullptr;
-        mpc.lbA_ = nullptr;
-        mpc.ubA_ = nullptr;
-        std::cout << "U: " << U << std::endl;
+        bool success = mpc.solve(Xk, steadyState.segment(0, 4), steadyState.segment(4, 2), Uk);
+        std::cout << "U optimal: " << Uk << std::endl;
+
+        // compute next state
+        Xk = system.nextState(Uk.cast<float>(), Xk.cast<float>()).cast<double>();
+        U.push_back(Uk);
+        X.push_back(Xk);
     }
 
-    for (int i = 0; i < 5; ++i)
-    {
-        mpc.solve(Xk.cast<double>(), U);
-        std::cout << "U: " << U << std::endl;
+    std::ofstream file("Xk.csv");
+
+    if (!file.is_open()) {
+        std::cerr << "Could not open the file!" << std::endl;
+        return;
     }
 
+    for (const auto& row : X) {
+        for (size_t i = 0; i < row.size(); ++i) {
+            file << row[i];
+            if (i < row.size() - 1) {
+                file << ","; // Add a comma except for the last element
+            }
+        }
+        file << "\n"; // New line at the end of each row
+    }
+
+    file.close();
+
+    std::ofstream file2("Uk.csv");
+
+    if (!file2.is_open()) {
+        std::cerr << "Could not open the file!" << std::endl;
+        return;
+    }
+
+    for (const auto& row : U) {
+        for (size_t i = 0; i < row.size(); ++i) {
+            file2 << row[i];
+            if (i < row.size() - 1) {
+                file2 << ","; // Add a comma except for the last element
+            }
+        }
+        file2 << "\n"; // New line at the end of each row
+    }
+
+    file2.close();
 }
+
 
 int main(int argc, char** argv)
 {

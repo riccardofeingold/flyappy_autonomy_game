@@ -9,6 +9,11 @@ const float pipeGap = 1.9;
 const float birdHeight = 24 * pixelInMeters;
 
 // constraints
+const float VMIN = -4.5;
+const float VMAX = 4.5;
+const float MAX_Y_SET_TIME = 2.5f/3.0f;
+const float HEIGHT_THRESHOLD = 0.5;
+const float X_SAFE_MARGIN = 0.2;
 const float axUpperBound = 3;
 const float axLowerBound = -3;
 const float ayUpperBound = 35;
@@ -18,7 +23,7 @@ const float ayLowerBound = -35;
 enum States {
   INIT,
   MOVE_FORWARD,
-  EXPLORE,
+  TUNNEL,
   TARGET
 };
 
