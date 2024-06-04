@@ -78,11 +78,10 @@ void Flyappy::update()
             stateChanged = false;
         }
 
-        XRef_ = Eigen::Vector4d(4.75, 0, 0, 0);
+        XRef_ = Eigen::Vector4d(4.75, 0.5, 0, 0);
         if (stateEstimator_->getPosition().x() > 4.7)
         {
             stateChanged = true;
-            // gateDetector_.findGapInWall(stateEstimator_->getPosition());
             currentState_ = States::TARGET;
         }
     } 
@@ -91,25 +90,22 @@ void Flyappy::update()
         if (stateChanged)
         {
             std::cout << "STATE: TUNNEL" << std::endl;
-            gatePosition_[0] = gateDetector_.closestPoints.closestPointWall1.x();
-            gatePosition_[1] = gateDetector_.gate1->position.y();
             stateChanged = false;
         }
         
         // Switch to TARGET mode if we reach already safety distance
         double xref = gatePosition_.x() + wallWidth * 0.8;
-        
+                
         // Setting reference point
         XRef_ = Eigen::Vector4d(xref, VMAX-1, stateEstimator_->getPosition().y(), 0.0);
 
         // look already for gaps
-        // gateDetector_.findGapInWall(stateEstimator_->getPosition());
+        gateDetector_.findGapInWall(stateEstimator_->getPosition());
         
         if (stateEstimator_->getPosition().x() > xref)
         {
             stateChanged = true;
             currentState_ = States::TARGET;
-            return;
         }
 
     } else if (currentState_ == States::TARGET)
@@ -119,26 +115,29 @@ void Flyappy::update()
             std::cout << "STATE: TARGET" << std::endl;
             stateChanged = false;
             explorePos_ = stateEstimator_->getPosition();
-        }
 
-        gateDetector_.findGapInWall(stateEstimator_->getPosition());
-
-        if (std::abs(gatePosition_.x() - gateDetector_.gate1->position.x()) > 0.5 &&
-            std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.01)
+            gateDetector_.findGapInWall(stateEstimator_->getPosition());
+            float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
+            float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
+            velX = velX < VMAX/3 ? VMAX/3 : velX;
+            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
+        } else
         {
-            if (stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x() - X_SAFE_MARGIN)
+            gateDetector_.findGapInWall(stateEstimator_->getPosition());
+
+            if (std::abs(gateDetector_.gate1->position.x() - gatePosition_.x()) > 1.5 && stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x() - X_SAFE_MARGIN)
             {
                 stateChanged = true;
+                gatePosition_[0] = gateDetector_.closestPoints.closestPointWall1.x();
+                gatePosition_[1] = gateDetector_.gate1->position.y();
                 currentState_ = States::TUNNEL;
-                return;
+            } else
+            {   
+                float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
+                float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
+                velX = velX < VMAX/3 ? VMAX/3 : velX;
+                XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
             }
-
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), VMAX-1, gateDetector_.gate1->position.y(), 0);
-        } else
-        {   
-            float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
-            float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-2;
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
         }
     }
     

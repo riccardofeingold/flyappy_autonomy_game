@@ -4,10 +4,12 @@ GateDetection::GateDetection(
     int mapWidth, 
     int mapHeight,
     int pointcloudBufferSize,
-    int numClusters
+    int numClusters,
+    bool renderMap
 ) : mapWidth_(mapWidth), 
     mapHeight_(mapHeight),
-    pointcloudBufferSize_(pointcloudBufferSize)
+    pointcloudBufferSize_(pointcloudBufferSize),
+    renderMap_(renderMap)
 {
     numClusters_ = numClusters;
     gate1 = std::make_unique<Gate>();
@@ -29,33 +31,7 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
         reset(ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT);
     }
 
-    // Refresh window
-    Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
-    if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
-    {
-        countPointcloudWindowUpdates_++;
-    }
 
-    // perform clustering and obtain convex hulls
-    if (pointCloud2D_.size() > numClusters_ && currentState != States::TUNNEL)
-    {
-        // filter duplicates
-        pointCloud2D_ = filterDuplicatePoints(pointCloud2D_, 0.0001);
-
-        // check if we still have data points left
-        if (pointCloud2D_.size() == 0)
-        {
-            std::cout << "FILTER REMOVED ALL DATA POINTS" << std::endl;
-            return;
-        }
-
-        // find closest point
-        if (pointCloud2D_.size() > 0)
-        {
-            closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
-        }
-    } 
-    
     // Save usefull 2D points
     for (uint8_t index = 0; index < laserData.intensities.size(); ++index)
     {
@@ -75,7 +51,38 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
             }
         }
     }
-    renderMap();
+
+    // perform clustering and obtain convex hulls
+    if (pointCloud2D_.size() > 0)
+    {
+        // filter duplicates
+        pointCloud2D_ = filterDuplicatePoints(pointCloud2D_, 0.0001);
+
+        // check if we still have data points left
+        if (pointCloud2D_.size() == 0)
+        {
+            std::cout << "FILTER REMOVED ALL DATA POINTS" << std::endl;
+            return;
+        }
+
+        // find closest point
+        if (pointCloud2D_.size() > 0)
+        {
+            closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
+            gate1->position[0] = closestPoints.closestPointWall1[0];
+        }
+    } 
+    
+    if (renderMap_)
+    {
+        // Refresh window
+        Eigen::Vector2f maxPoint = Maths::farthestPoint(pointCloud2D_);
+        if (maxPoint.x() * (int) 1 /pixelInMeters > mapWidth_ * (countPointcloudWindowUpdates_ + 1))
+        {
+            countPointcloudWindowUpdates_++;
+        }
+        renderMap(position);
+    }
 }
 
 void GateDetection::reset(ResetStates state)
@@ -98,13 +105,15 @@ void GateDetection::reset(ResetStates state)
             break;
 
         case ResetStates::CLEAR_ALL_NEAR_CLOSEST_POINT:
+            std::vector<Eigen::Vector2f> temp;
             for (unsigned int i = 0; i < pointCloud2D_.size(); ++i)
             {
-                if (pointCloud2D_[i].x() > closestPoints.closestPointWall1.x() - 2*wallWidth && pointCloud2D_[i].x() < closestPoints.closestPointWall1.x() + 2*wallWidth)
+                if (pointCloud2D_[i].x() > closestPoints.closestPointWall1.x() + 2*wallWidth)
                 {
-                    pointCloud2D_.erase(pointCloud2D_.begin() + i);
+                    temp.push_back(pointCloud2D_[i]);
                 }
             }
+            pointCloud2D_ = temp;
             break;
     }
 }
@@ -362,7 +371,7 @@ void GateDetection::computeBoundaries()
 /*********************************************************/
 /**********************RENDERING**************************/
 /*********************************************************/
-void GateDetection::renderMap()
+void GateDetection::renderMap(const Eigen::Vector2f& position)
 {
     cv::Mat image = cv::Mat::zeros(mapHeight_, mapWidth_, CV_8UC3);
 
@@ -387,6 +396,11 @@ void GateDetection::renderMap()
     cv::Point2f cvPointClosestW2 = Conversions::convertEigenToCVPoint<float>(closestPoints.closestPointWall2);
     cvPointClosestW2 = cv::Point2f(cvPointClosestW2.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -cvPointClosestW2.y);
     cv::circle(image, cvPointClosestW2 * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 3, cv::Scalar(255, 0, 0), cv::FILLED);
+
+    // closest point
+    cv::Point2f bird = Conversions::convertEigenToCVPoint<float>(position);
+    bird = cv::Point2f(bird.x - pixelInMeters * countPointcloudWindowUpdates_ * mapWidth_, -bird.y);
+    cv::circle(image, bird * (int) 1 / pixelInMeters + cv::Point2f(0, mapHeight_/2), 10, cv::Scalar(255, 10, 50), cv::FILLED);
 
     cv::imshow("Point Cloud", image);
     cv::waitKey(1);

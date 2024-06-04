@@ -55,7 +55,8 @@ class GateDetection
         int mapWidth = 1000,
         int mapHeight = 1000,
         int pointcloudBufferSize = 10000,
-        int numClusters = 5
+        int numClusters = 5,
+        bool renderMap = true
     );
 
 
@@ -104,7 +105,7 @@ class GateDetection
     void convexHull(const std::vector<PointGroup>& clusters, std::vector<PointGroup>& hulls, bool& enoughDataPoints);
 
     /// @brief renders pointcloud using OpenCV
-    void renderMap();
+    void renderMap(const Eigen::Vector2f& position);
 
     /// @brief renders clusters and convex hulls using OpenCV
     /// @param clusters obtained from clustering
@@ -142,4 +143,5 @@ class GateDetection
     const int mapWidth_;
     const int mapHeight_;
     const int pointcloudBufferSize_;
+    const bool renderMap_;
 };
