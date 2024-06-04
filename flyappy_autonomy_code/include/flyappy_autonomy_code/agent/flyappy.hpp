@@ -40,7 +40,7 @@ class Flyappy
   /// @brief LQR controller
   LQR lqr_;
   /// @brief MPC controller
-  MPCController mpc_;
+  MPC mpc_;
 
   /// @brief for state estimation
   std::shared_ptr<StateEstimation> stateEstimator_;

@@ -8,17 +8,17 @@
 #include "flyappy_autonomy_code/utils/conversion.hpp"
 
 USING_NAMESPACE_QPOASES
-class MPCController 
+class MPC 
 {
     public:
-    MPCController(
+    MPC(
         int Nx=4, // state dimension
         int Nu=2, // control dimension
         int N=30, // horizon
         int nWSR=100 // number of working set calculations
     );
     
-    ~MPCController();
+    ~MPC();
 
     /// @brief set State matrix constraints
     void setStateMatrixConstraints(const Eigen::MatrixXd& Hx, const Eigen::VectorXd& hx);

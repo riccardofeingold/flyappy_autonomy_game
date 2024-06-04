@@ -225,7 +225,7 @@ TEST(ControllerTesting, matrixFormation)
     R << 1, 0,
          0, 0.001;
 
-    MPCController mpc(4, 2, 5, 10);
+    MPC mpc(4, 2, 5, 10);
     mpc.setQRPMatrices(Q, R);
     // mpc.constructQBar();
 
@@ -270,7 +270,7 @@ TEST(ControllerTesting, MPCTest)
     R << 1, 0,
          0, 0.001;
 
-    MPCController mpc(4, 2, 30, 100);
+    MPC mpc(4, 2, 30, 100);
     mpc.setQRPMatrices(Q, R);
 
     // solve mpc

@@ -1,6 +1,6 @@
 #include "flyappy_autonomy_code/controller/mpc_controller.hpp"
 
-MPCController::MPCController(
+MPC::MPC(
     int Nx,
     int Nu,
     int N,
@@ -31,7 +31,7 @@ MPCController::MPCController(
            -ayLowerBound;
 }
 
-MPCController::~MPCController()
+MPC::~MPC()
 {
     delete[] H_;
     delete[] g_;
@@ -40,7 +40,7 @@ MPCController::~MPCController()
     delete[] ubA_;
 }
 
-bool MPCController::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U)
+bool MPC::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U)
 {
     // Setup consttraints
     Eigen::MatrixXd g = F_.transpose() * Xk;
@@ -83,13 +83,13 @@ bool MPCController::solve(const Eigen::Vector4d& Xk, Eigen::Vector2d& U)
     return success;
 }
 
-void MPCController::setStateMatrixConstraints(const Eigen::MatrixXd& Hx, const Eigen::VectorXd& hx)
+void MPC::setStateMatrixConstraints(const Eigen::MatrixXd& Hx, const Eigen::VectorXd& hx)
 {
     Hx_ = Hx;
     hx_ = hx;
 }
 
-void MPCController::setQRPMatrices(const Eigen::Matrix4d& Q, const Eigen::Matrix2d& R)
+void MPC::setQRPMatrices(const Eigen::Matrix4d& Q, const Eigen::Matrix2d& R)
 {
     Q_ = Q;
     R_ = R;
@@ -105,7 +105,7 @@ void MPCController::setQRPMatrices(const Eigen::Matrix4d& Q, const Eigen::Matrix
     constructUpperBoundConstraints();
 }
 
-void MPCController::computeP()
+void MPC::computeP()
 {
     Eigen::Matrix4d P = Q_;
     Eigen::Matrix4d P_next;
@@ -131,7 +131,7 @@ void MPCController::computeP()
     P_ = P;
 }
 
-void MPCController::constructConstraintsMatrix()
+void MPC::constructConstraintsMatrix()
 {
     for (int i = 0; i < N_; ++i)
     {
@@ -141,7 +141,7 @@ void MPCController::constructConstraintsMatrix()
     A_ = Conversions::convertEigenToRealT(eigenA_);
 }
 
-void MPCController::constructUpperBoundConstraints()
+void MPC::constructUpperBoundConstraints()
 {
     eigenUBA_ = Eigen::VectorXd::Zero(hu_.rows() * N_);
     
@@ -153,7 +153,7 @@ void MPCController::constructUpperBoundConstraints()
     ubA_ = Conversions::convertEigenToRealT<double>(eigenUBA_);
 }
 
-void MPCController::constructQBar()
+void MPC::constructQBar()
 {
     for (uint8_t i = 0; i < N_ - 1; ++i)
     {
@@ -163,7 +163,7 @@ void MPCController::constructQBar()
     QBar_.block((N_ - 1)*P_.rows(), (N_ - 1)*P_.cols(), P_.rows(), P_.cols()) = P_;
 }
 
-void MPCController::constructRBar()
+void MPC::constructRBar()
 {
     for (uint8_t i = 0; i < N_; ++i)
     {
@@ -171,7 +171,7 @@ void MPCController::constructRBar()
     }
 }
 
-void MPCController::constructSxSu()
+void MPC::constructSxSu()
 {
     // Sx = [A, A², A³, ..., A^N]^T
     // Su = [B 0 ... 0
@@ -204,18 +204,18 @@ void MPCController::constructSxSu()
     }
 }
 
-void MPCController::constructH()
+void MPC::constructH()
 {
     eigenH_ = Su_.transpose() * QBar_ * Su_ + RBar_;
     H_ = Conversions::convertEigenToRealT(eigenH_);
 }
 
-void MPCController::constructF()
+void MPC::constructF()
 {
     F_ = Sx_.transpose() * QBar_ * Su_;
 }
 
-void MPCController::constructY()
+void MPC::constructY()
 {
     Y_ = Sx_.transpose() * QBar_ * Sx_;
 }
