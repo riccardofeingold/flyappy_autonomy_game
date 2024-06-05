@@ -24,7 +24,7 @@ There are in total four states in which the bird can be:
 - **TUNNEL**: This is a constrained state, where the bird's y-component is kept fix.
 - **TARGET**: As the name suggest, this is the phase where the bird adjusts it height. If needed (due to big height difference: at least 1.0 m) it will adjust the x-speed.
 
-Initially, I started by implementing a PID controller. The problem there was the oscillation and also it was not able to handle high speeds. So, I switch to a linear quadratic regulator. With that I could already reach scores of at least 40. But what was missing, was the possibility to add constraints, especially on the control input. That's why ended up using a model prective controller. 
+Initially, I started by implementing a PID controller. The problem there was the oscillation and also it was not able to handle high speeds. So, I switch to a linear quadratic regulator. With that I could already reach scores of at least 40. But what was missing, was the possibility to add constraints, especially on the control input. That's why ended up using a model prective controller. For the tuning of the LQR and the MPC I implemented a few matlab scripts, mainly because it is easier to formulate MPC problems there and to use it as verification for the C++ implementation of the LQR and MPC. You can find those here: [Matlab Files](https://github.com/riccardofeingold/MPC_LQR_tuning_for_flyappy_autonomy_game)
 
 ## Getting Started
 ### Setup environment
