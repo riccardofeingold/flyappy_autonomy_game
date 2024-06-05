@@ -13,6 +13,28 @@ runs out!
 
 [![Flyappy: Score 106](flyappy_cover.png)](106.mp4)
 
+A list of score reached in 20 consecutive runs (**High Score:** 110 and **Average Score**: 98.6):
+- Run 1: 110
+- Run 2: 99
+- Run 3: 106
+- Run 4: 103
+- Run 5: 100
+- Run 6: 106
+- Run 7: 108
+- Run 8: 102
+- Run 9: 107
+- Run 10: 58
+- Run 11: 105
+- Run 12: 100
+- Run 13: 71
+- Run 14: 108
+- Run 15: 104
+- Run 16: 102
+- Run 17: 70
+- Run 18: 103
+- Run 19: 102
+- Run 20: 108
+
 ## A few words about the solution
 The version that you see in the video uses a model predictive controller for reference tracking. For such tasks, it is convenient to write the MPC problem in delta formulation. I formulate the QP problem such that the dynamics are substituted.
 
