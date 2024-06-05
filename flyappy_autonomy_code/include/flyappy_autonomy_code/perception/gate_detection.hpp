@@ -95,7 +95,6 @@ class GateDetection
     /// @brief sort pointcloud by y component
     void sortPointCloud(std::vector<Eigen::Vector2f>& pointcloud);
 
-
     /// @brief Returns two clusters after running KMeans on pointcloud data for two upcoming walls, which can be then used to compute two convex hulls
     bool clustering(std::vector<PointGroup>& clustersWall1);
 
@@ -132,7 +131,7 @@ class GateDetection
     /// @brief counts how many times flappy bird goes out of screen in pointcloud window
     int countPointcloudWindowUpdates_ = 0;
     /// @brief Margin applied to top and bottom to filter out points from ceiling and ground
-    const float margin_ = 15 * pixelInMeters;
+    const float margin_ = 24 * pixelInMeters;
     /// @brief upper margin to filter out points that are part of the ceiling
     float upperBoundary_ = 0;
     /// @brief lower margin to filter out points that are part of the ground

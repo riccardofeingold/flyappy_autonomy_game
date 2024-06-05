@@ -110,23 +110,22 @@ void Flyappy::update()
 
     } else if (currentState_ == States::TARGET)
     {
+        gateDetector_.findGapInWall(stateEstimator_->getPosition());
         if (stateChanged)
         {
             std::cout << "STATE: TARGET" << std::endl;
             stateChanged = false;
             explorePos_ = stateEstimator_->getPosition();
 
-            gateDetector_.findGapInWall(stateEstimator_->getPosition());
             float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
             float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
             velX = velX < VMAX/3 ? VMAX/3 : velX;
             XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
         } else
         {
-            gateDetector_.findGapInWall(stateEstimator_->getPosition());
-
-            if (std::abs(gateDetector_.gate1->position.x() - gatePosition_.x()) > 1.5 && stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x() - X_SAFE_MARGIN)
+            if (std::abs(gateDetector_.gate1->position.x() - gatePosition_.x()) > 1.5 && stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x())
             {
+                if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.03)
                 stateChanged = true;
                 gatePosition_[0] = gateDetector_.closestPoints.closestPointWall1.x();
                 gatePosition_[1] = gateDetector_.gate1->position.y();
