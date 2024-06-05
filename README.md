@@ -58,14 +58,14 @@ Then go into the qpOASES folder and run *make*:
 ```bash
 make
 ```
-After that you can build the actual ros packages using:
-```bash
-catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-```
-
 Then install OpenCV:
 ```bash
 sudo apt-get install ros-noetic-vision-opencv
+```
+
+After that you can build the actual ros packages using:
+```bash
+catkin_make --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
 ```
 
 After compilation, at the root of the workspace, source the workspace in the terminal
