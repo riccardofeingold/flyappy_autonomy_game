@@ -11,7 +11,20 @@ the laserscans in return for an acceleration input. Flyappy only asks for 60 sec
 your guidance. Help Flyappy go through as many asteroid lines as possible before the time
 runs out!
 
-![Flyappy](flyappy_cover.png)
+[![Flyappy: Score 106](flyappy_cover.png)](106.mp4)
+
+## A few words about the solution
+The version that you see in the video uses a model predictive controller for reference tracking. For such tasks, it is convenient to write the MPC problem in delta formulation. I formulate the QP problem such that the dynamics are substituted.
+
+The gate detection computes two possible gaps by first sorting the pointcloud according to the y-component and then by measuring the difference between two consecutives points. The algorithms considers a gap as big enough if it is at least twice the size of the bird. If the second biggest gap satisfies this condition then this gap is chosen. The gate position is then computed based on the average of the upper and lower point that represent the gap.
+
+There are in total four states in which the bird can be:
+- **INIT**: During this state the bird measures the upper and lower fence. This should help then to filter out points registered on the ground or ceiling.
+- **MOVE_FORWARD**: Here, the bird simply moves forward until it reaches 4.7 m, which is close engough to compute the gate position.
+- **TUNNEL**: This is a constrained state, where the bird's y-component is kept fix.
+- **TARGET**: As the name suggest, this is the phase where the bird adjusts it height. If needed (due to big height difference: at least 1.0 m) it will adjust the x-speed.
+
+Initially, I started by implementing a PID controller. The problem there was the oscillation and also it was not able to handle high speeds. So, I switch to a linear quadratic regulator. With that I could already reach scores of at least 40. But what was missing, was the possibility to add constraints, especially on the control input. That's why ended up using a model prective controller. 
 
 ## Getting Started
 ### Setup environment
