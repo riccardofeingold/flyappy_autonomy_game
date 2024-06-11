@@ -98,9 +98,6 @@ void Flyappy::update()
                 
         // Setting reference point
         XRef_ = Eigen::Vector4d(xref, VMAX-1, stateEstimator_->getPosition().y(), 0.0);
-
-        // look already for gaps
-        gateDetector_.findGapInWall(stateEstimator_->getPosition());
         
         if (stateEstimator_->getPosition().x() > xref)
         {
@@ -110,38 +107,37 @@ void Flyappy::update()
 
     } else if (currentState_ == States::TARGET)
     {
-        gateDetector_.findGapInWall(stateEstimator_->getPosition());
         if (stateChanged)
         {
             std::cout << "STATE: TARGET" << std::endl;
             stateChanged = false;
             explorePos_ = stateEstimator_->getPosition();
+        }
 
-            float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
-            float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
-            velX = velX < VMAX/3 ? VMAX/3 : velX;
-            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
-        } else
+        if (std::abs(gateDetector_.gate1->position.x() - gatePosition_.x()) > 1.5 && stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x())
         {
-            if (std::abs(gateDetector_.gate1->position.x() - gatePosition_.x()) > 1.5 && stateEstimator_->getPosition().x() > gateDetector_.gate1->position.x())
+            if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.03)
             {
-                if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.03)
                 stateChanged = true;
                 gatePosition_[0] = gateDetector_.closestPoints.closestPointWall1.x();
                 gatePosition_[1] = gateDetector_.gate1->position.y();
                 currentState_ = States::TUNNEL;
-            } else
-            {   
-                float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
-                float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
-                velX = velX < VMAX/3 ? VMAX/3 : velX;
-                XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
             }
+        } else
+        {   
+            float deltaX = std::abs(stateEstimator_->getPosition().x() - gateDetector_.gate1->position.x());
+            float velX = std::abs(explorePos_.y() - gateDetector_.gate1->position.y()) > HEIGHT_THRESHOLD ? deltaX/MAX_Y_SET_TIME : VMAX-1;
+            velX = velX < VMAX/3 ? VMAX/3 : velX;
+
+            if (std::abs(stateEstimator_->getPosition().y() - gateDetector_.gate1->position.y()) < 0.03)
+            {
+                velX = VMAX-1;
+            }
+
+            XRef_ = Eigen::Vector4d(gateDetector_.gate1->position.x(), velX, gateDetector_.gate1->position.y(), 0);
         }
     }
     
-    // std::cout << "XRef: " << XRef_ << std::endl;
-    // std::cout << "Pos: " << stateEstimator_->getPosition() << std::endl;
     // Track Path: Compute control input
     controlInput_ = Eigen::Vector2d::Zero();
     Eigen::VectorXd steadState = mpc_.computeSteadyState(XRef_);

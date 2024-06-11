@@ -71,7 +71,13 @@ void GateDetection::update(const Eigen::Vector2f& position, const sensor_msgs::L
             closestPoints.closestPointWall1 = Maths::closestPoint(pointCloud2D_);
             gate1->position[0] = closestPoints.closestPointWall1[0];
         }
-    } 
+    }
+
+    // find gap in wall if you are in TARGET or TUNNEL mode
+    if (currentState == States::TARGET || currentState == States::TUNNEL)
+    {
+        findGapInWall(position);
+    }
     
     if (renderMap_)
     {
